@@ -1,4 +1,4 @@
-/* Seegang – Partie-Sitzungen.
+/* Seefahrt – Partie-Sitzungen.
  * HostSession rechnet die Partie (lokal, allein oder als Online-Gastgeber),
  * RemoteSession reicht Aktionen an einen Gastgeber weiter. Beide liefern der
  * Oberfläche über onUpdate({view, events, viewer, seats, fresh}) den Spielverlauf. */
@@ -6,7 +6,7 @@
   'use strict';
   const SG = root.SG = root.SG || {};
   const E = SG.Engine;
-  const SAVE_KEY = 'seegang.save';
+  const SAVE_KEY = 'seefahrt.save';
 
   /* seats: Array[4] aus {kind:'human'|'ai'|'remote', name, conn?} oder null (unbesetzt im Duell) */
   class HostSession {
@@ -105,7 +105,7 @@
       }
       if (st.phase === 'play' && isBot(st.turn)) {
         const seat = st.turn;
-        const delay = (st.seven ? 380 : 620 + Math.random() * 420) * (SG.speed || 1);
+        const delay = (st.pend && st.pend.k !== 'bonus' ? 420 : 620 + Math.random() * 420) * (SG.speed || 1);
         this.aiTimer = setTimeout(() => {
           if (this.dead || this.state.turn !== seat || this.state.phase !== 'play') return;
           const a = SG.AI.choose(E.view(this.state, seat), seat);
@@ -125,7 +125,7 @@
     static saved() {
       try {
         const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
-        return s && s.state && s.state.v === 1 && s.state.phase !== 'over' ? s : null;
+        return s && s.state && s.state.v === 2 && s.state.phase !== 'over' ? s : null;
       } catch (e) { return null; }
     }
     static clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }

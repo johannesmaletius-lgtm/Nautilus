@@ -1,4 +1,4 @@
-/* Seegang – leise, per WebAudio erzeugte Töne (keine Audiodateien). */
+/* Seefahrt – leise, per WebAudio erzeugte Töne (keine Audiodateien). */
 (function (root) {
   'use strict';
   const SG = root.SG = root.SG || {};
