@@ -290,12 +290,12 @@ img { -webkit-user-drag: none; }
 .art.num i::before { content: '· '; }
 .wave { width: 4em; height: .6em; opacity: .6; margin: .1em 0 .35em; }
 .cap { font-size: .78em; letter-spacing: .16em; text-transform: uppercase; color: var(--navy); opacity: .8; line-height: 1; white-space: nowrap; }
-.art.pic img { width: 6.4em; height: 6.4em; object-fit: contain; display: block; }
-.art.pic { margin-top: .9em; }
+.art.pic img { width: 6.9em; height: 6.9em; object-fit: contain; display: block; }
+.art.pic { margin-top: -.3em; }
+.art.pic + .ttl.long { font-size: .98em; letter-spacing: 0; }
 .art.glyph { margin-top: .9em; }
 .art.glyph .ic { width: 5.2em; height: 5.2em; }
 .ttl { font-family: var(--serif); font-weight: 550; font-size: 1.22em; letter-spacing: .01em; margin-top: .35em; line-height: 1; font-variation-settings: 'opsz' 30; }
-.card[data-type="pilot"] .art.pic img { width: 5.6em; height: 5.6em; margin: .4em 0; }
 .face.back { transform: rotateY(180deg); background: var(--navy); box-shadow: 0 0 0 1px rgba(22, 51, 92, .5), 0 .5em 1.1em -.5em rgba(22, 51, 92, .45); }
 .back-art { position: absolute; inset: .5em; border-radius: .45em; background: url(../assets/compass-sq.webp) center / cover; box-shadow: 0 0 0 .08em rgba(255, 248, 234, .8); }
 
@@ -402,3 +402,4 @@ body.side .status { min-height: 60px; }
   color: var(--ink); background: var(--paper-hi); box-shadow: 0 0 0 1px var(--navy);
 }
 .shark-in { transform-box: fill-box; transform-origin: center; }
+.shark .guard { transform-box: fill-box; transform-origin: center; animation: spin 14s linear infinite; }

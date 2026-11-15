@@ -1065,18 +1065,20 @@
     const shipIds = Array.from(new Set(moves.map(a => a.ship)));
     if (G.sel.ship !== null && !shipIds.includes(G.sel.ship)) G.sel.ship = null;
     if (shipIds.length === 1 && G.sel.ship === null && !plain.length) G.sel.ship = shipIds[0];
-    for (const id of shipIds) {
-      if (id === G.sel.ship) continue;
-      list.push({ kind: 'ship', ship: id, pick: () => pickShip(id) });
-    }
     let swapping = false;
     if (G.sel.ship !== null) {
       const sa = moves.filter(a => a.ship === G.sel.ship);
       const owner = v.ships[G.sel.ship].owner;
       swapping = sa[0].k === 'swap';
+      // Tauschpartner zuerst: sie liegen genau auf den anderen wählbaren Schiffen und müssen beim Tippen gewinnen
       if (swapping) for (const a of sa) list.push({ kind: 'aim', ship: a.target, pick: () => act(a) });
       else for (const a of sa) list.push({ kind: 'dest', at: a.dest.at, i: a.dest.i, owner, color: B.COLORS[owner], pick: () => act(a) });
-      list.push({ kind: 'self', ship: G.sel.ship, pick: () => { if (sa.length === 1) act(sa[0]); } });
+      list.push({ kind: 'self', ship: G.sel.ship, pick: () => { if (sa.length === 1) act(sa[0]); else deselectShip(); } });
+    }
+    const aimed = new Set(list.filter(t => t.kind === 'aim').map(t => t.ship));
+    for (const id of shipIds) {
+      if (id === G.sel.ship || aimed.has(id)) continue;
+      list.push({ kind: 'ship', ship: id, pick: () => pickShip(id) });
     }
     B.setTargets(list, deselect);
     B.setSelected(G.sel.ship);
@@ -1094,6 +1096,10 @@
   function cardType(id) {
     const h = G.hand.find(x => x.card.id === id);
     return h ? h.card.type : null;
+  }
+  function deselectShip() {
+    G.sel.ship = null;
+    updateTargets();
   }
   function pickShip(id) {
     const sa = currentActs().filter(a => a.ship === id);

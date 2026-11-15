@@ -30,6 +30,7 @@
   // Spielfiguren: ausgeschnittene Fotos der Schiffe, Standfläche auf der Feldmitte
   const FIG_H = 76, FIG_W = 60;
   const figure = seat => `assets/fig-${seat}.webp`;
+  const SHARK_H = 84, SHARK_W = 83;
 
   let svg, rot, gMarks, gShips, gFx, sharkEl, sharkIn;
   let ships = {};          // id -> {el, inner, owner}
@@ -88,14 +89,14 @@
     }
     gMarks = mk('g', { class: 'marks' }, rot);
     gShips = mk('g', { class: 'ships' }, rot);
-    // Der Weiße Hai: Rückenflosse über den Wellen
+    // Der Weiße Hai: freigestellte Figur, bleibt aufrecht wie die Schiffe
     sharkEl = mk('g', { class: 'shark', style: 'display:none' }, gShips);
-    sharkIn = mk('g', { class: 'shark-in' }, sharkEl);
-    mk('circle', { r: 29, fill: NAVY, stroke: '#C9655C', 'stroke-width': 3.2 }, sharkIn);
-    const sUp = mk('g', { class: 'up' }, sharkIn);
-    mk('path', { d: 'M-17 7C-10 3-1-9 9-27C5-15 6-3 16 7Z', fill: '#9AA6B2', stroke: PAPER, 'stroke-width': 1.8, 'stroke-linejoin': 'round' }, sUp);
-    mk('path', { d: 'M-3-4C1-10 5-17 8-24', fill: 'none', stroke: '#C9D1D9', 'stroke-width': 1.6, 'stroke-linecap': 'round' }, sUp);
-    mk('path', { d: 'M-21 12q5.250-4.500 10.500 0t10.500 0 10.500 0 10.500 0', fill: 'none', stroke: PAPER, 'stroke-width': 2.6, 'stroke-linecap': 'round' }, sUp);
+    mk('circle', { class: 'guard', r: 23, fill: 'none', stroke: '#C9655C', 'stroke-width': 2.2, 'stroke-dasharray': '3.200 3.800' }, sharkEl);
+    const sUp = mk('g', { class: 'up' }, sharkEl);
+    mk('ellipse', { class: 'shade', cx: 3, cy: 5, rx: 28, ry: 9.5, fill: 'rgba(22,51,92,.34)' }, sUp);
+    sharkIn = mk('g', { class: 'shark-in' }, sUp);
+    const sImg = mk('image', { x: -SHARK_W / 2, y: -SHARK_H * 0.9, width: SHARK_W, height: SHARK_H }, sharkIn);
+    sImg.setAttribute('href', 'assets/fig-shark.webp');
     gFx = mk('g', { class: 'fx' }, rot);
     ships = {};
     targets = [];
