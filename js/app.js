@@ -9,13 +9,7 @@
 
   const BOT_NAMES = ['Fiete', 'Smilla', 'Ole', 'Jonna', 'Hauke', 'Ebba', 'Tjark', 'Merle'];
   const ORDER = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', '12', 'K', 'swap', 'wake', 'whale', 'pilot'];
-  const GLYPHS = [
-    '<circle cx="12" cy="12" r="3.400" fill="#FFF8EA"/>',
-    '<circle cx="12" cy="12" r="4.200" fill="none" stroke="#FFF8EA" stroke-width="2"/>',
-    '<path d="M12 6.800l4.700 8.600H7.300z" fill="#FFF8EA"/>',
-    '<path d="M12 6.900l5.100 5.100-5.100 5.100-5.100-5.100z" fill="#FFF8EA"/>',
-  ];
-  const token = seat => `<svg class="tok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="${B.COLORS[seat]}"/>${GLYPHS[seat]}</svg>`;
+  const token = seat => `<img class="tok" src="${B.figure(seat)}" alt="" draggable="false">`;
 
   /* ================= Bildschirme ================= */
   function show(id) {
@@ -93,7 +87,7 @@
       const s = setup.seats[i];
       return seatRow(i, s, {
         input: true,
-        sub: setup.mode === 'team' ? (i % 2 === 0 ? 'Team Kaltwasser' : 'Team Abendrot') : (i === 0 ? 'Flotte Blau' : 'Flotte Petrol'),
+        sub: setup.mode === 'team' ? (i % 2 === 0 ? 'Team Kaltwasser' : 'Team Abendrot') : (i === 0 ? 'Flotte Blau' : 'Flotte Grün'),
         right: `<button class="kind" data-kind="${s.kind}">${s.kind === 'human' ? 'Mensch' : 'Computer'}</button>`,
       });
     }).join('');
@@ -179,7 +173,7 @@
       if (host && (s.kind === 'open' || s.kind === 'ai')) right = `<button class="kind" data-toggle="${i}">${s.kind === 'open' ? 'Wartet …' : 'Computer'}</button>`;
       else if (!host && s.kind === 'open') right = `<button class="kind" data-sit="${i}">Hierhin</button>`;
       else if (mine) right = '<span class="you">Du</span>';
-      const team = L.mode === 'team' ? (i % 2 === 0 ? 'Team Kaltwasser' : 'Team Abendrot') : (i === 0 ? 'Flotte Blau' : 'Flotte Petrol');
+      const team = L.mode === 'team' ? (i % 2 === 0 ? 'Team Kaltwasser' : 'Team Abendrot') : (i === 0 ? 'Flotte Blau' : 'Flotte Grün');
       return `<div class="seat s${i} ${s.kind === 'open' ? 'open' : ''}" data-seat="${i}">${token(i)}<div class="seat-main"><b>${esc(name)}</b><small>${team}</small></div>${right}</div>`;
     }).join('');
     $('#lobby-note').textContent = host

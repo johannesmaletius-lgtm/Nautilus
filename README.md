@@ -78,6 +78,9 @@ node test/engine.test.js
 
 Spielt zufällige und KI-gesteuerte Partien bis zum Ende und prüft dabei die Invarianten (kein Feld doppelt besetzt, Kartenzahl bleibt 108 …).
 
+Die Spielfiguren (`assets/fig-*.webp`) sind aus einem Foto der Figuren freigestellt; auf dem Spielfeld bleiben sie aufrecht,
+auch wenn sich der Tisch zur Sicht des jeweiligen Spielers dreht.
+
 ## Fremdmaterial
 
 - Schriften: Fraunces und Figtree (SIL Open Font License)

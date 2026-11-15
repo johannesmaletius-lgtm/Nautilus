@@ -6,8 +6,8 @@
   const NS = 'http://www.w3.org/2000/svg';
   const C = 500, R = 450, A0 = 135;
 
-  const COLORS = ['#1B5EB0', '#C9655C', '#1E7F78', '#D29A2C'];
-  const COLOR_NAMES = ['Blau', 'Koralle', 'Petrol', 'Ocker'];
+  const COLORS = ['#35689A', '#C4533F', '#4F7F45', '#DFA636'];
+  const COLOR_NAMES = ['Blau', 'Rot', 'Grün', 'Gelb'];
   const NAVY = '#16335C', PAPER = '#FFF8EA';
 
   const sleep = ms => new Promise(r => setTimeout(r, ms * (SG.speed || 1)));
@@ -27,12 +27,9 @@
     return el;
   }
 
-  const GLYPH = [
-    g => mk('circle', { r: 4.6, fill: PAPER }, g),
-    g => mk('circle', { r: 5.6, fill: 'none', stroke: PAPER, 'stroke-width': 2.6 }, g),
-    g => mk('path', { d: 'M0-6.800L6.200 4.600H-6.200z', fill: PAPER }, g),
-    g => mk('path', { d: 'M0-6.600L6.600 0 0 6.600-6.600 0z', fill: PAPER }, g),
-  ];
+  // Spielfiguren: ausgeschnittene Fotos der Schiffe und des Wals, Standfläche auf der Feldmitte
+  const FIG_H = 76, FIG_W = 60, WHALE_H = 80, WHALE_W = 76;
+  const figure = seat => `assets/fig-${seat}.webp`;
 
   let svg, rot, gMarks, gShips, gFx, whaleEl, whaleIn;
   let ships = {};          // id -> {el, inner, owner}
@@ -91,15 +88,12 @@
     }
     gMarks = mk('g', { class: 'marks' }, rot);
     gShips = mk('g', { class: 'ships' }, rot);
-    whaleEl = mk('g', { class: 'whale', style: 'display:none' }, rot);
+    whaleEl = mk('g', { class: 'whale', style: 'display:none' }, gShips);
     whaleIn = mk('g', { class: 'whale-in' }, whaleEl);
-    mk('circle', { r: 23, fill: NAVY, stroke: PAPER, 'stroke-width': 2.5 }, whaleIn);
-    const wi = mk('g', { class: 'whale-ic' }, whaleIn);
-    mk('path', {
-      transform: 'translate(-15 -15.500) scale(1.25)',
-      d: 'M12 22c.3-4.500-.4-7.600-2.300-9.300C7.600 10.900 4.500 10.800 2 8.300c.2-2.600 1.700-4.300 4-4.800 3 1 5 3.200 6 6.500 1-3.300 3-5.500 6-6.500 2.300.5 3.800 2.200 4 4.800-2.500 2.500-5.600 2.600-7.700 4.400-1.900 1.700-2.600 4.800-2.300 9.300z',
-      fill: PAPER,
-    }, wi);
+    mk('circle', { r: 32, fill: NAVY, stroke: PAPER, 'stroke-width': 2.5 }, whaleIn);
+    const wUp = mk('g', { class: 'up' }, whaleIn);
+    const wImg = mk('image', { x: -WHALE_W / 2 + 2, y: -WHALE_H * 0.8, width: WHALE_W, height: WHALE_H }, wUp);
+    wImg.setAttribute('href', 'assets/fig-whale.webp');
     gFx = mk('g', { class: 'fx' }, rot);
     ships = {};
     targets = [];
@@ -128,10 +122,11 @@
     rotDeg = target;
     rot.style.transition = animate ? `transform ${1100 * (SG.speed || 1)}ms cubic-bezier(.6,0,.2,1)` : 'none';
     rot.style.transform = `rotate(${rotDeg}deg)`;
-    const wi = whaleEl.querySelector('.whale-ic');
-    wi.style.transition = rot.style.transition;
-    wi.style.transform = `rotate(${-rotDeg}deg)`;
-    return animate ? sleep(1100) : Promise.resolve();
+    // Figuren bleiben aufrecht, während sich der Tisch dreht
+    rot.style.setProperty('--up', -rotDeg + 'deg');
+    rot.style.setProperty('--updur', (animate ? 1100 * (SG.speed || 1) : 0) + 'ms');
+    if (!animate) { sortShips(); return Promise.resolve(); }
+    return sleep(1100).then(sortShips);
   }
 
   function place(el, xy, dur) {
@@ -154,10 +149,24 @@
     if (ships[s.id]) return ships[s.id];
     const el = mk('g', { class: 'ship', 'data-id': s.id }, gShips);
     mk('circle', { class: 'guard', r: 21.5, fill: 'none', stroke: COLORS[s.owner], 'stroke-width': 2, 'stroke-dasharray': '3.200 3.800' }, el);
-    const inner = mk('g', { class: 'ship-in' }, el);
-    mk('circle', { r: 15.5, fill: COLORS[s.owner], stroke: 'rgba(10,25,50,.28)', 'stroke-width': 1.5 }, inner);
-    GLYPH[s.owner](inner);
+    const up = mk('g', { class: 'up' }, el);
+    mk('ellipse', { class: 'shade', cx: 3, cy: 5, rx: 24, ry: 8.500, fill: 'rgba(22,51,92,.22)' }, up);
+    const inner = mk('g', { class: 'ship-in' }, up);
+    const img = mk('image', { x: -FIG_W / 2, y: -FIG_H * 0.86, width: FIG_W, height: FIG_H }, inner);
+    img.setAttribute('href', figure(s.owner));
     return (ships[s.id] = { el, inner, owner: s.owner });
+  }
+
+  /* Reihenfolge nach Bildschirmtiefe: was weiter unten steht, verdeckt das dahinter. */
+  function sortShips() {
+    const a = rotDeg * Math.PI / 180, re = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/;
+    const items = Array.from(gShips.children).map((el, i) => {
+      const m = re.exec(el.style.transform);
+      const x = m ? +m[1] - C : 0, y = m ? +m[2] - C : 0;
+      return { el, i, sy: x * Math.sin(a) + y * Math.cos(a) };
+    });
+    const sorted = items.slice().sort((p, q) => p.sy - q.sy || p.i - q.i);
+    if (sorted.some((it, k) => it.i !== k)) sorted.forEach(it => gShips.appendChild(it.el));
   }
 
   /* Stellt alle Figuren ohne Animation auf den Stand der Sicht. */
@@ -176,6 +185,7 @@
       whaleEl.style.display = '';
       place(whaleEl, pos('ring', view.whale), 0);
     } else whaleEl.style.display = 'none';
+    sortShips();
   }
 
   function ripple(xy, color, big) {
@@ -219,6 +229,7 @@
     const last = path[path.length - 1];
     sh.el.classList.toggle('docked', last.at === 'harbor');
     await Promise.all(pending);
+    sortShips();
   }
 
   async function launch(id, to, hit) {
@@ -232,6 +243,7 @@
     sh.el.classList.add('fresh');
     if (hit !== undefined) await capture(hit);
     else await sleep(160);
+    sortShips();
   }
 
   async function swap(a, posA, b, posB) {
@@ -246,6 +258,7 @@
     ripple(pos(posA.at, posA.i, A.owner), COLORS[A.owner]);
     ripple(pos(posB.at, posB.i, B.owner), COLORS[B.owner]);
     await sleep(200);
+    sortShips();
   }
 
   async function whaleDive() {
@@ -260,6 +273,7 @@
     const xy = pos('ring', to);
     place(whaleEl, xy, 0);
     whaleEl.style.display = '';
+    sortShips();
     SG.Sound.whale();
     ripple(xy, NAVY, true);
     waapi(whaleIn,
@@ -283,6 +297,10 @@
     for (const id in ships) ships[id].el.classList.remove('pick', 'sel', 'aim');
     for (const t of targets) {
       t.xy = t.ship !== undefined && t.kind !== 'dest' ? shipXY(t.ship) : pos(t.at, t.i, t.owner);
+      if (t.ship !== undefined && t.kind !== 'dest') {
+        const a = -rotDeg * Math.PI / 180;
+        t.body = [t.xy[0] + Math.sin(a) * -30 * -1, t.xy[1] - Math.cos(a) * 30];
+      }
       if (t.kind === 'ship' || t.kind === 'aim') {
         const sh = ships[t.ship];
         if (sh) sh.el.classList.add(t.kind === 'aim' ? 'aim' : 'pick');
@@ -319,7 +337,8 @@
     const [x, y] = toBoard(ev);
     let best = null, bestD = 58 * 58;
     for (const t of targets) {
-      const d = (t.xy[0] - x) ** 2 + (t.xy[1] - y) ** 2;
+      let d = (t.xy[0] - x) ** 2 + (t.xy[1] - y) ** 2;
+      if (t.body) d = Math.min(d, (t.body[0] - x) ** 2 + (t.body[1] - y) ** 2);
       if (d < bestD) { bestD = d; best = t; }
     }
     if (best) { SG.Sound.tap(); best.pick(); }
@@ -337,7 +356,7 @@
 
   SG.Board = {
     COLORS, COLOR_NAMES, NAVY, build, setMode, setViewer, sync, pos, screenXY,
-    moveShip, launch, swap, capture, whaleTo, whaleDive, homeGlow, ripple,
+    moveShip, launch, swap, capture, whaleTo, whaleDive, homeGlow, ripple, sortShips, figure,
     setTargets, setSelected,
   };
 })(window);
