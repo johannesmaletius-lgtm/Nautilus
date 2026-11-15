@@ -1,4 +1,4 @@
-/* Seegang – Spielfeld (SVG): Geometrie, Figuren, Markierungen und Bewegungsanimationen. */
+/* Seefahrt – Spielfeld (SVG): Geometrie, Figuren, Markierungen und Bewegungsanimationen. */
 (function (root) {
   'use strict';
   const SG = root.SG = root.SG || {};
@@ -27,11 +27,11 @@
     return el;
   }
 
-  // Spielfiguren: ausgeschnittene Fotos der Schiffe und des Wals, Standfläche auf der Feldmitte
-  const FIG_H = 76, FIG_W = 60, WHALE_H = 80, WHALE_W = 76;
+  // Spielfiguren: ausgeschnittene Fotos der Schiffe, Standfläche auf der Feldmitte
+  const FIG_H = 76, FIG_W = 60;
   const figure = seat => `assets/fig-${seat}.webp`;
 
-  let svg, rot, gMarks, gShips, gFx, whaleEl, whaleIn;
+  let svg, rot, gMarks, gShips, gFx, sharkEl, sharkIn;
   let ships = {};          // id -> {el, inner, owner}
   let targets = [];        // aktuelle Tipp-Ziele
   let onMiss = null;
@@ -88,12 +88,14 @@
     }
     gMarks = mk('g', { class: 'marks' }, rot);
     gShips = mk('g', { class: 'ships' }, rot);
-    whaleEl = mk('g', { class: 'whale', style: 'display:none' }, gShips);
-    whaleIn = mk('g', { class: 'whale-in' }, whaleEl);
-    mk('circle', { r: 32, fill: NAVY, stroke: PAPER, 'stroke-width': 2.5 }, whaleIn);
-    const wUp = mk('g', { class: 'up' }, whaleIn);
-    const wImg = mk('image', { x: -WHALE_W / 2 + 2, y: -WHALE_H * 0.8, width: WHALE_W, height: WHALE_H }, wUp);
-    wImg.setAttribute('href', 'assets/fig-whale.webp');
+    // Der Weiße Hai: Rückenflosse über den Wellen
+    sharkEl = mk('g', { class: 'shark', style: 'display:none' }, gShips);
+    sharkIn = mk('g', { class: 'shark-in' }, sharkEl);
+    mk('circle', { r: 29, fill: NAVY, stroke: '#C9655C', 'stroke-width': 3.2 }, sharkIn);
+    const sUp = mk('g', { class: 'up' }, sharkIn);
+    mk('path', { d: 'M-17 7C-10 3-1-9 9-27C5-15 6-3 16 7Z', fill: '#9AA6B2', stroke: PAPER, 'stroke-width': 1.8, 'stroke-linejoin': 'round' }, sUp);
+    mk('path', { d: 'M-3-4C1-10 5-17 8-24', fill: 'none', stroke: '#C9D1D9', 'stroke-width': 1.6, 'stroke-linecap': 'round' }, sUp);
+    mk('path', { d: 'M-21 12q5.250-4.500 10.500 0t10.500 0 10.500 0 10.500 0', fill: 'none', stroke: PAPER, 'stroke-width': 2.6, 'stroke-linecap': 'round' }, sUp);
     gFx = mk('g', { class: 'fx' }, rot);
     ships = {};
     targets = [];
@@ -181,10 +183,10 @@
       sh.el.classList.toggle('docked', s.at === 'harbor');
     }
     for (const id in ships) if (!alive.has(id)) { ships[id].el.remove(); delete ships[id]; }
-    if (view.whale >= 0) {
-      whaleEl.style.display = '';
-      place(whaleEl, pos('ring', view.whale), 0);
-    } else whaleEl.style.display = 'none';
+    if (view.shark >= 0) {
+      sharkEl.style.display = '';
+      place(sharkEl, pos('ring', view.shark), 0);
+    } else sharkEl.style.display = 'none';
     sortShips();
   }
 
@@ -247,7 +249,8 @@
   }
 
   async function swap(a, posA, b, posB) {
-    const A = ships[a], B = ships[b]; if (!A || !B) return;
+    const A = ships[a], B = b === -1 ? { el: sharkEl, inner: sharkIn, owner: -1 } : ships[b];
+    if (!A || !B) return;
     SG.Sound.swap();
     A.el.classList.remove('fresh'); B.el.classList.remove('fresh');
     gShips.appendChild(A.el); gShips.appendChild(B.el);
@@ -256,30 +259,63 @@
     bump(A.inner, 1.7, 760); bump(B.inner, 1.7, 760);
     await sleep(780);
     ripple(pos(posA.at, posA.i, A.owner), COLORS[A.owner]);
-    ripple(pos(posB.at, posB.i, B.owner), COLORS[B.owner]);
+    ripple(pos(posB.at, posB.i, B.owner), B.owner < 0 ? NAVY : COLORS[B.owner]);
     await sleep(200);
     sortShips();
   }
 
-  async function whaleDive() {
-    if (whaleEl.style.display === 'none') return;
-    waapi(whaleIn, [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(.2)', opacity: 0 }], { duration: 360, easing: 'ease-in', fill: 'forwards' });
-    await sleep(370);
-    whaleEl.style.display = 'none';
-    if (whaleIn.getAnimations) whaleIn.getAnimations().forEach(a => a.cancel());
-  }
-  async function whaleTo(from, to) {
-    if (from >= 0) await whaleDive();
-    const xy = pos('ring', to);
-    place(whaleEl, xy, 0);
-    whaleEl.style.display = '';
-    sortShips();
+  /* Der Hai taucht auf einem Feld auf (und schlägt, was dort liegt). */
+  async function sharkAppear(at, hit) {
+    const xy = pos('ring', at);
+    place(sharkEl, xy, 0);
+    sharkEl.style.display = '';
+    gShips.appendChild(sharkEl);
     SG.Sound.whale();
     ripple(xy, NAVY, true);
-    waapi(whaleIn,
+    waapi(sharkIn,
       [{ transform: 'scale(.1)', opacity: 0 }, { transform: 'scale(1.35)', opacity: 1, offset: 0.6 }, { transform: 'scale(1)', opacity: 1 }],
       { duration: 720, easing: 'cubic-bezier(.2,.7,.3,1)' });
-    await sleep(820);
+    await sleep(500);
+    if (hit !== undefined) await capture(hit);
+    else await sleep(320);
+    sortShips();
+  }
+  /* Der Hai schwimmt Feld für Feld; wer auf dem Weg liegt, wird geschlagen. */
+  async function sharkRun(path) {
+    if (!path.length) return;
+    gShips.appendChild(sharkEl);
+    const dur = path.length > 6 ? 120 : 190;
+    const pending = [];
+    for (let k = 0; k < path.length; k++) {
+      const p = path[k];
+      place(sharkEl, pos('ring', p.i), dur);
+      bump(sharkIn, 1.2, dur);
+      await sleep(dur);
+      if (p.hit !== undefined) { SG.Sound.whale(); pending.push(capture(p.hit)); }
+    }
+    await Promise.all(pending);
+    sortShips();
+  }
+  /* Lotse: Figuren springen auf ihren früheren Platz zurück. */
+  async function restore(moves, shark) {
+    const jobs = [];
+    for (const m of moves) {
+      const sh = ships[m.ship]; if (!sh) continue;
+      gShips.appendChild(sh.el);
+      sh.el.classList.toggle('fresh', !!m.fresh);
+      sh.el.classList.toggle('docked', m.to.at === 'harbor');
+      place(sh.el, pos(m.to.at, m.to.i, sh.owner), 720);
+      bump(sh.inner, 1.5, 720);
+      jobs.push(sleep(740).then(() => ripple(pos(m.to.at, m.to.i, sh.owner), COLORS[sh.owner])));
+    }
+    if (shark && shark.from !== shark.to) {
+      if (shark.to < 0) sharkEl.style.display = 'none';
+      else { sharkEl.style.display = ''; place(sharkEl, pos('ring', shark.to), 720); bump(sharkIn, 1.4, 720); }
+    }
+    if (moves.length || (shark && shark.from !== shark.to)) SG.Sound.swap();
+    await Promise.all(jobs);
+    await sleep(160);
+    sortShips();
   }
 
   function homeGlow(id) {
@@ -302,7 +338,7 @@
         t.body = [t.xy[0] + Math.sin(a) * -30 * -1, t.xy[1] - Math.cos(a) * 30];
       }
       if (t.kind === 'ship' || t.kind === 'aim') {
-        const sh = ships[t.ship];
+        const sh = t.ship === -1 ? null : ships[t.ship];
         if (sh) sh.el.classList.add(t.kind === 'aim' ? 'aim' : 'pick');
         mk('circle', { cx: t.xy[0], cy: t.xy[1], r: 24, class: 'mark ' + (t.kind === 'aim' ? 'aim' : 'pick'), style: `--c:${t.kind === 'aim' ? '#C9655C' : NAVY}` }, gMarks);
       } else if (t.kind === 'dest') {
@@ -316,13 +352,14 @@
   function setSelected(id) {
     for (const k in ships) ships[k].el.classList.toggle('sel', +k === id);
     gMarks.querySelectorAll('.mark.selring').forEach(n => n.remove());
-    if (id !== null && id !== undefined && ships[id]) {
+    if (id !== null && id !== undefined && (ships[id] || id === -1)) {
       const xy = shipXY(id);
       mk('circle', { cx: xy[0], cy: xy[1], r: 24, class: 'mark selring', style: `--c:${NAVY}` }, gMarks);
     }
   }
   function shipXY(id) {
-    const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(ships[id].el.style.transform);
+    const el = id === -1 ? sharkEl : ships[id] && ships[id].el;
+    const m = el && /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(el.style.transform);
     return m ? [+m[1], +m[2]] : [C, C];
   }
   function toBoard(ev) {
@@ -356,7 +393,7 @@
 
   SG.Board = {
     COLORS, COLOR_NAMES, NAVY, build, setMode, setViewer, sync, pos, screenXY,
-    moveShip, launch, swap, capture, whaleTo, whaleDive, homeGlow, ripple, sortShips, figure,
+    moveShip, launch, swap, capture, sharkAppear, sharkRun, restore, homeGlow, ripple, sortShips, figure,
     setTargets, setSelected,
   };
 })(window);

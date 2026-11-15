@@ -1,10 +1,10 @@
-/* Seegang – Online-Verbindung über WebRTC (PeerJS).
+/* Seefahrt – Online-Verbindung über WebRTC (PeerJS).
  * Der Gastgeber rechnet die Partie; Mitspieler verbinden sich direkt mit seinem Browser.
  * Es gibt keinen eigenen Server – nur die öffentliche PeerJS-Vermittlung für den Verbindungsaufbau. */
 (function (root) {
   'use strict';
   const SG = root.SG = root.SG || {};
-  const PREFIX = 'seegang-r1-';
+  const PREFIX = 'seefahrt-r1-';
   const ALPHABET = 'ABCDEFGHJKLMNPRSTUVWXYZ';
 
   function peerOptions() {

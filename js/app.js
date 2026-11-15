@@ -1,4 +1,4 @@
-/* Seegang – Oberfläche: Bildschirme, Spieltisch, Eingabe und Ablauf der Animationen. */
+/* Seefahrt – Oberfläche: Bildschirme, Spieltisch, Eingabe und Ablauf der Animationen. */
 (function () {
   'use strict';
   const SG = window.SG, E = SG.Engine, B = SG.Board, Cards = SG.Cards, Sound = SG.Sound;
@@ -8,7 +8,7 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   const BOT_NAMES = ['Fiete', 'Smilla', 'Ole', 'Jonna', 'Hauke', 'Ebba', 'Tjark', 'Merle'];
-  const ORDER = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', '12', 'K', 'swap', 'wake', 'whale', 'pilot'];
+  const ORDER = ['1', '12', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'swap', 'shark', 'pilot', 'board', 'trade', 'vision', 'storm'];
   const token = seat => `<img class="tok" src="${B.figure(seat)}" alt="" draggable="false">`;
 
   /* ================= Bildschirme ================= */
@@ -269,9 +269,9 @@
   });
   $('#lobby-share').onclick = async () => {
     const url = location.origin + location.pathname + '?raum=' + L.code;
-    const text = 'Komm an Bord – Seegang, Raum ' + L.code;
+    const text = 'Komm an Bord – Seefahrt, Raum ' + L.code;
     try {
-      if (navigator.share) { await navigator.share({ title: 'Seegang', text, url }); return; }
+      if (navigator.share) { await navigator.share({ title: 'Seefahrt', text, url }); return; }
       await navigator.clipboard.writeText(url);
       toast('Link kopiert.');
     } catch (e) { toast('Raum-Code: ' + L.code); }
@@ -348,7 +348,7 @@
     queue: [], busy: false, built: false,
     hand: [],               // [{card, el}]
     counts: {},             // angezeigte Kartenzahl je Platz
-    sel: { card: null, as: null, ship: null },
+    sel: { card: null, ship: null },
     acts: [], open: false, giveSel: null,
     active: null,
   };
@@ -358,7 +358,7 @@
   function startGame(session, quiet) {
     if (G.session && G.session !== session) G.session.leave();
     G.session = session;
-    G.queue = []; G.view = null; G.hand = []; G.counts = {}; G.sel = { card: null, as: null, ship: null };
+    G.queue = []; G.view = null; G.hand = []; G.counts = {}; G.sel = { card: null, ship: null };
     G.open = false; G.active = null;
     $('#hand').innerHTML = ''; $('#pile').innerHTML = ''; $('#fly').innerHTML = '';
     $('#status').innerHTML = '';
@@ -403,14 +403,9 @@
     const s = G.session.seats[G.viewer];
     return !!s && s.kind === 'human';
   }
-  function cardLabel(type, as) {
-    const n = Cards.INFO[type];
-    const base = /^\d+$/.test(type) ? 'die ' + type : type === 'A' || type === 'K' ? 'Ablegen' : type === 'pilot' ? 'den Lotsen' : type === 'whale' ? 'den Wal' : type === 'swap' ? 'den Tausch' : 'Kielwasser';
-    if (type === 'pilot' && as) {
-      const a = /^\d+$/.test(as) ? as : Cards.INFO[as].name;
-      return 'den Lotsen als ' + a;
-    }
-    return n ? base : type;
+  const LABEL = { swap: 'Kurswechsel', board: 'Entern', pilot: 'den Lotsen', shark: 'den Weißen Hai', trade: 'Handel', vision: 'Weitblick', storm: 'Sturmfront' };
+  function cardLabel(type) {
+    return /^\d+$/.test(type) ? 'die ' + type : LABEL[type] || type;
   }
 
   /* ---------- Größen ---------- */
@@ -459,7 +454,9 @@
       el.dataset.sub = sub;
       el.innerHTML = `${token(seat)}<span class="who"><b>${esc(name(seat))}</b><small></small></span><span class="minis"></span>`;
       setCount(seat, G.counts[seat] !== undefined ? G.counts[seat] : view.hands[seat].length);
-      setFlag(seat, view.out[seat] ? 'setzt aus' : (view.phase === 'exchange' && view.give[seat] !== null ? 'bereit' : ''));
+      showOpen(seat, view);
+      const trading = view.phase === 'exchange' && view.give[seat] !== null && view.give[seat] !== -1;
+      setFlag(seat, view.out[seat] ? 'setzt aus' : view.skip[seat] > 0 ? 'muss aussetzen' : trading ? 'bereit' : '');
     }
     setActive(view.phase === 'play' ? view.turn : null);
   }
@@ -470,6 +467,16 @@
     while (m.children.length > n) m.lastChild.remove();
     while (m.children.length < n) m.appendChild(document.createElement('i'));
   }
+  /* Weitblick: offen gezeigte Karten in der Spielerleiste */
+  function showOpen(seat, view) {
+    const el = chipEl(seat); if (!el) return;
+    const m = el.querySelector('.minis'); if (!m) return;
+    const cards = seat !== G.viewer && view.open[seat] ? view.hands[seat].filter(Boolean) : [];
+    m.classList.toggle('open', cards.length > 0);
+    if (!cards.length) { $$('i', m).forEach(i => { i.className = ''; i.textContent = ''; }); return; }
+    m.innerHTML = cards.map(c => `<i class="face" title="${esc(Cards.INFO[c.type].name)}">${esc(Cards.short(c.type))}</i>`).join('');
+    G.counts[seat] = cards.length;
+  }
   function setActive(seat) {
     G.active = seat;
     $$('.chip').forEach(c => c.classList.toggle('active', seat !== null && +c.dataset.seat === seat && !c.classList.contains('none')));
@@ -479,7 +486,7 @@
     const f = el.querySelector('.who small'); if (!f) return;
     f.textContent = text || el.dataset.sub || '';
     f.classList.toggle('flag', !!text);
-    el.classList.toggle('out', text === 'setzt aus');
+    el.classList.toggle('out', text === 'setzt aus' || text === 'muss aussetzen');
   }
 
   /* ---------- Status ---------- */
@@ -598,7 +605,6 @@
   async function playEvents(events, u) {
     for (const e of events) {
       switch (e.t) {
-        case 'whaleOff': await B.whaleDive(); break;
         case 'reshuffle': toast('Der Stapel wird neu gemischt.'); break;
         case 'roundEnd': {
           await sleep(350);
@@ -611,6 +617,7 @@
         case 'gave': await doGave(e, u); break;
         case 'exchanged': await doExchanged(e, u); break;
         case 'turn':
+          if (e.bonus) setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'darfst', 'darf')} noch eine Karte spielen`);
           setActive(e.seat);
           if (isYou(e.seat) || (e.seat === u.viewer && canAct())) Sound.turn();
           await sleep(140);
@@ -622,9 +629,58 @@
           if (e.home) { B.homeGlow(e.ship); await sleep(420); }
           break;
         case 'swap': await B.swap(e.a, e.posA, e.b, e.posB); break;
-        case 'whale': await B.whaleTo(e.from, e.to); break;
-        case 'sevenLeft':
-          if (e.seat !== G.viewer) setStatus(`${esc(who(e.seat))} zieht die 7 – noch ${e.left} ${e.left === 1 ? 'Schritt' : 'Schritte'}`);
+        case 'shark': await B.sharkRun(e.path); break;
+        case 'roll': await doRoll(e); break;
+        case 'sharkIn':
+          banner('Der Weiße Hai', 'taucht auf');
+          await sleep(300);
+          await B.sharkAppear(e.at, e.hit);
+          break;
+        case 'undo':
+          setStatus('Der Lotse nimmt den letzten Zug zurück');
+          await B.restore(e.moves, e.shark);
+          break;
+        case 'replay':
+          if (e.none) { setStatus(`Die ${esc(cardLabel(e.type).replace(/^die |^den /, ''))} lässt sich jetzt nicht nutzen`); await sleep(900); }
+          else if (e.seat !== G.viewer) setStatus(`<b>${esc(who(e.seat))}</b> nutzt ${esc(cardLabel(e.type))} selbst`);
+          break;
+        case 'splitLeft':
+          if (e.seat !== G.viewer) setStatus(`${esc(who(e.seat))} verteilt die 5 – noch ${e.left} ${e.left === 1 ? 'Schritt' : 'Schritte'}`);
+          break;
+        case 'skip':
+          setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'lässt', 'lässt')} <b>${esc(isYou(e.target) ? 'dich' : name(e.target))}</b> aussetzen`);
+          setFlag(e.target, 'muss aussetzen');
+          Sound.fold();
+          await sleep(700);
+          break;
+        case 'discard': await doDiscard(e); break;
+        case 'board':
+          setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'enterst', 'entert')} <b>${esc(isYou(e.victim) ? 'dich' : name(e.victim))}</b>` + (e.none ? ' – aber keine Karte lässt sich nutzen' : ''));
+          if (!e.none && e.seat === G.viewer && canAct()) { syncHand(u.view.hands[e.victim].filter(Boolean)); G.hand.forEach(h => h.el.classList.add('new')); }
+          await sleep(e.none ? 1100 : 500);
+          break;
+        case 'trade':
+          setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'handelst', 'handelt')} mit <b>${esc(isYou(e.partner) ? 'dir' : name(e.partner))}</b>`);
+          await sleep(500);
+          break;
+        case 'vision':
+          banner('Weitblick', 'Karten auf den Tisch');
+          for (const s of u.view.seats) showOpen(s, u.view);
+          await sleep(900);
+          break;
+        case 'storm':
+          banner('Sturmfront', 'Karten nach rechts');
+          Sound.fold();
+          await sleep(600);
+          for (const s of u.view.seats) if (s !== G.viewer) setCount(s, u.view.hands[s].length);
+          syncHand((u.view.hands[G.viewer] || []).filter(Boolean));
+          G.hand.forEach(h => h.el.classList.add('new'));
+          setTimeout(() => G.hand.forEach(h => h.el.classList.remove('new')), 2200);
+          await sleep(500);
+          break;
+        case 'pass':
+          setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'kannst', 'kann')} keine weitere Karte spielen`);
+          await sleep(700);
           break;
         case 'fold': await doFold(e); break;
         case 'win': await sleep(500); break;
@@ -722,23 +778,25 @@
   }
 
   async function doPlay(e) {
-    const mine = e.seat === G.viewer;
-    const label = cardLabel(e.card.type, e.as);
-    setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'spielst', 'spielt')} ${esc(label)}`);
+    const holder = e.for !== undefined ? e.for : e.seat;
+    const label = cardLabel(e.card.type);
+    setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'spielst', 'spielt')} ${esc(label)}` +
+      (e.for !== undefined ? ` für <b>${esc(isYou(e.for) ? 'dich' : name(e.for))}</b>` : ''));
     const pile = pileRect();
     const rot = (Math.random() * 16 - 8);
     const box = rectOf($('#board-box'));
-    let el = mine ? takeHandCard(e.card.id) : null;
+    let el = takeHandCard(e.card.id);
     Sound.card();
     if (el) {
+      if (holder !== G.viewer) setCount(holder, Math.max(0, (G.counts[holder] || 1) - 1));
       const from = rectOf(el);
       layoutHand();
       await flyCard(el, { x: from.x, y: from.y, w: G.cw }, { x: pile.x, y: pile.y, w: pile.w },
         { dur: 620, rot, show: { x: box.x, y: box.y, s: 1.7 } });
     } else {
-      const chip = chipEl(e.seat);
+      const chip = chipEl(holder);
       const src = chip ? rectOf(chip.querySelector('.minis')) : pile;
-      setCount(e.seat, Math.max(0, (G.counts[e.seat] || 1) - 1));
+      setCount(holder, Math.max(0, (G.counts[holder] || 1) - 1));
       el = Cards.el(e.card, { down: true });
       setTimeout(() => el.classList.remove('down'), 90);
       await flyCard(el, { x: src.x, y: src.y, w: Math.max(22, pile.w * 0.5) }, { x: pile.x, y: pile.y, w: pile.w },
@@ -747,6 +805,33 @@
     toPile(el, rot);
   }
 
+  async function doRoll(e) {
+    banner('Würfel: ' + e.value, 'Der Hai zieht weiter');
+    Sound.deal();
+    await sleep(900);
+    await B.sharkRun(e.path);
+    const hits = e.path.filter(p => p.hit !== undefined).length;
+    if (hits) toast(hits === 1 ? 'Der Hai hat ein Schiff erwischt.' : `Der Hai hat ${hits} Schiffe erwischt.`);
+  }
+  async function doDiscard(e) {
+    setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'setzt', 'setzt')} aus und ${verb(e.seat, 'wirfst', 'wirft')} eine Karte ab`);
+    Sound.fold();
+    const pile = pileRect(), rot = Math.random() * 30 - 15;
+    let el = takeHandCard(e.card.id), from;
+    if (el) { from = Object.assign(rectOf(el), { w: G.cw }); layoutHand(); }
+    else {
+      const chip = chipEl(e.seat);
+      const src = chip ? rectOf(chip.querySelector('.minis')) : pile;
+      from = { x: src.x, y: src.y, w: Math.max(22, pile.w * 0.5) };
+      setCount(e.seat, Math.max(0, (G.counts[e.seat] || 1) - 1));
+      el = Cards.el(e.card, { down: true });
+      setTimeout(() => el.classList.remove('down'), 60);
+    }
+    await flyCard(el, from, { x: pile.x, y: pile.y, w: pile.w }, { dur: 560, rot });
+    toPile(el, rot);
+    setFlag(e.seat, '');
+    await sleep(300);
+  }
   async function doFold(e) {
     setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'kannst', 'kann')} nicht ziehen und ${verb(e.seat, 'setzt', 'setzt')} aus`);
     Sound.fold();
@@ -777,7 +862,7 @@
   function passDevice(seat) {
     return new Promise(res => {
       const v = $('#veil');
-      v.innerHTML = `<div class="veil-in"><img src="assets/whale.webp" alt="" draggable="false">
+      v.innerHTML = `<div class="veil-in"><img src="assets/ship.webp" alt="" draggable="false">
         <p>Das Gerät geht an</p><h2>${token(seat)} ${esc(name(seat))}</h2>
         <button class="btn primary">Ich bin ${esc(name(seat))}</button></div>`;
       v.hidden = false;
@@ -848,35 +933,45 @@
     $('#round-info').textContent = `Runde ${v.round + 1}`;
     B.sync(v);
     renderChips(v);
-    syncHand(v.hands[G.viewer].filter(Boolean));
+    syncHand(shownHand(v));
     if (!$('#pile').children.length) (v.top || []).forEach(c => toPile(Cards.el(c), Math.random() * 16 - 8));
     if (v.phase === 'over') { B.setTargets([]); showEnd(); return; }
     openInput();
+  }
+
+  /* Beim Entern hält man die Karten des Geenterten in der Hand. */
+  function shownHand(v) {
+    const p = v.pend;
+    if (p && p.k === 'board' && p.seat === G.viewer && canAct()) return v.hands[p.victim].filter(Boolean);
+    return v.hands[G.viewer].filter(Boolean);
   }
 
   /* ---------- Eingabe ---------- */
   function closeInput() {
     G.open = false;
     G.acts = [];
-    G.sel = { card: null, as: null, ship: null };
+    G.sel = { card: null, ship: null };
     B.setTargets([]); B.setSelected(null);
     $$('#hand .card').forEach(c => c.classList.remove('playable', 'dim'));
     layoutHand();
   }
   function openInput() {
     const v = G.view, me = G.viewer;
-    G.acts = []; G.sel = { card: null, as: null, ship: null };
+    G.acts = []; G.sel = { card: null, ship: null };
     G.open = false;
     const able = canAct();
     if (v.phase === 'exchange') {
-      const p = E.partner(v, me);
+      const trade = v.trade;
       if (able && v.give[me] === null) {
         G.open = true;
         // eine schon getroffene Auswahl bleibt bestehen, auch wenn inzwischen andere abgegeben haben
         if (G.giveSel !== null && !G.hand.some(h => h.card.id === G.giveSel)) G.giveSel = null;
         showGiveStatus();
         G.hand.forEach(h => h.el.classList.add('playable'));
-      } else { G.giveSel = null; setStatus('Die Karten werden getauscht …'); }
+      } else {
+        G.giveSel = null;
+        setStatus(trade ? `<b>${esc(name(trade[0]))}</b> und <b>${esc(name(trade[1]))}</b> handeln …` : 'Die Karten werden getauscht …');
+      }
       layoutHand();
       return;
     }
@@ -890,19 +985,23 @@
     }
     G.acts = E.legalActions(v, me);
     G.open = true;
-    if (G.acts.length === 1 && G.acts[0].k === 'fold') {
+    const only = G.acts.length === 1 ? G.acts[0].k : null;
+    if (only === 'fold' || only === 'pass') {
       G.hand.forEach(h => h.el.classList.add('dim'));
-      setStatus('Keine deiner Karten lässt sich spielen.', { label: 'Aussetzen', go: () => act({ k: 'fold' }) });
+      setStatus(only === 'fold' ? 'Keine deiner Karten lässt sich spielen.' : 'Keine weitere Karte lässt sich spielen.',
+        { label: only === 'fold' ? 'Aussetzen' : 'Weiter', go: () => act(G.acts[0]) });
       B.setTargets([]);
       return;
     }
+    const direct = boardFirst(); // Schritte, die ohne Kartenwahl gezogen werden (5 verteilen, Lotse)
     const playable = new Set(G.acts.map(a => a.card));
     G.hand.forEach(h => {
-      h.el.classList.toggle('playable', !v.seven && playable.has(h.card.id));
-      h.el.classList.toggle('dim', !!v.seven || !playable.has(h.card.id));
+      h.el.classList.toggle('playable', !direct && playable.has(h.card.id));
+      h.el.classList.toggle('dim', direct || !playable.has(h.card.id));
     });
     updateTargets();
   }
+  const boardFirst = () => !!(G.view.pend && (G.view.pend.k === 'split' || G.view.pend.k === 'replay'));
 
   function showGiveStatus() {
     const p = E.partner(G.view, G.viewer), id = G.giveSel;
@@ -918,73 +1017,64 @@
       layoutHand();
       return;
     }
-    if (v.seven) return;
+    if (boardFirst()) return;
     if (!G.acts.some(a => a.card === id)) {
       const h = G.hand.find(x => x.card.id === id);
       if (h) { toast('Diese Karte lässt sich gerade nicht spielen.', 1600); anim(h.el, [{ translate: '0 0' }, { translate: '-5px 0' }, { translate: '5px 0' }, { translate: '0 0' }], { duration: 260 }); }
       return;
     }
-    if (G.sel.card === id) { G.sel = { card: null, as: null, ship: null }; layoutHand(); updateTargets(); return; }
-    G.sel = { card: id, as: null, ship: null };
+    if (G.sel.card === id) { G.sel = { card: null, ship: null }; layoutHand(); updateTargets(); return; }
+    G.sel = { card: id, ship: null };
     layoutHand();
-    const card = G.hand.find(h => h.card.id === id).card;
-    if (card.type === 'pilot') choosePilot(id);
-    else updateTargets();
-  }
-
-  function choosePilot(id) {
-    const types = ORDER.filter(t => G.acts.some(a => a.card === id && a.as === t));
-    const c = modal(`<h3>Der Lotse fährt als …</h3><div class="pick-grid">${types.map(t => `<button class="pick" data-as="${t}"></button>`).join('')}</div><button class="btn ghost wide" data-cancel>Abbrechen</button>`, { cls: 'picker' });
-    $$('.pick', c).forEach(b => b.appendChild(Cards.el({ type: b.dataset.as })));
-    const cancel = () => { if (G.sel.card === id && !G.sel.as) { G.sel = { card: null, as: null, ship: null }; layoutHand(); updateTargets(); } };
-    $('#modal').onclick = e => { if (e.target === $('#modal')) { closeModal(); cancel(); } };
-    c.onclick = e => {
-      const b = e.target.closest('[data-as]');
-      if (b) { Sound.tap(); G.sel.as = b.dataset.as; closeModal(); updateTargets(); }
-      else if (e.target.closest('[data-cancel]')) { closeModal(); cancel(); }
-    };
+    updateTargets();
   }
 
   function currentActs() {
-    const v = G.view;
-    if (v.seven) return G.acts;
+    if (boardFirst()) return G.acts;
     if (G.sel.card === null) return [];
-    return G.acts.filter(a => a.card === G.sel.card && (!G.sel.as || a.as === G.sel.as));
+    return G.acts.filter(a => a.card === G.sel.card);
   }
   function deselect() {
-    if (G.view.seven) { if (G.sel.ship !== null) { G.sel.ship = null; updateTargets(); } return; }
+    if (boardFirst()) { if (G.sel.ship !== null) { G.sel.ship = null; updateTargets(); } return; }
     if (G.sel.card === null) return;
-    G.sel = { card: null, as: null, ship: null };
+    G.sel = { card: null, ship: null };
     layoutHand(); updateTargets();
   }
 
+  const PLAIN = {
+    skip: a => `${name(a.target)} aussetzen lassen`, shark: () => 'Hai losschicken', pilot: () => 'Lotse rufen',
+    board: () => 'Entern', trade: () => 'Handeln', vision: () => 'Karten aufdecken', storm: () => 'Sturm auslösen', discard: () => 'Abwerfen',
+  };
   function updateTargets() {
     const v = G.view, cur = currentActs(), list = [];
+    const p = v.pend;
     if (!cur.length) {
       B.setTargets([], deselect); B.setSelected(null);
-      if (G.open && v.phase === 'play' && v.turn === G.viewer && !v.seven) setStatus('<b>Du bist am Zug</b> – wähle eine Karte');
+      if (G.open && v.phase === 'play' && v.turn === G.viewer) {
+        if (p && p.k === 'board') setStatus(`<b>Du enterst ${esc(name(p.victim))}</b> – spiele eine seiner Karten für ihn`);
+        else if (v.skip[G.viewer] > 0 && !(p && p.k === 'bonus')) setStatus('<b>Du setzt aus</b> – wähle eine Karte zum Abwerfen');
+        else if (p && p.k === 'bonus') setStatus('<b>Sturmfront</b> – du darfst noch eine Karte spielen');
+        else setStatus('<b>Du bist am Zug</b> – wähle eine Karte');
+      }
       return;
     }
-    const first = cur[0];
-    const type = v.seven ? '7' : first.as;
-    const info = Cards.INFO[type];
-    if (first.k === 'whale') {
-      for (const a of cur) list.push({ kind: 'field', at: 'ring', i: a.field, pick: () => act(a) });
-      B.setTargets(list, deselect); B.setSelected(null);
-      setStatus('Wo soll der <b>Wal</b> auftauchen? Tippe auf ein freies Feld.');
-      return;
-    }
-    const shipIds = Array.from(new Set(cur.map(a => a.ship)));
+    const type = p && p.k === 'split' ? '5' : p && p.k === 'replay' ? p.type : cardType(G.sel.card);
+    const info = Cards.INFO[type] || { hint: '' };
+    const plain = cur.filter(a => a.ship === undefined);
+    const moves = cur.filter(a => a.ship !== undefined);
+    const shipIds = Array.from(new Set(moves.map(a => a.ship)));
     if (G.sel.ship !== null && !shipIds.includes(G.sel.ship)) G.sel.ship = null;
-    if (shipIds.length === 1 && G.sel.ship === null) G.sel.ship = shipIds[0];
+    if (shipIds.length === 1 && G.sel.ship === null && !plain.length) G.sel.ship = shipIds[0];
     for (const id of shipIds) {
       if (id === G.sel.ship) continue;
       list.push({ kind: 'ship', ship: id, pick: () => pickShip(id) });
     }
+    let swapping = false;
     if (G.sel.ship !== null) {
-      const sa = cur.filter(a => a.ship === G.sel.ship);
+      const sa = moves.filter(a => a.ship === G.sel.ship);
       const owner = v.ships[G.sel.ship].owner;
-      if (sa[0].k === 'swap') for (const a of sa) list.push({ kind: 'aim', ship: a.target, pick: () => act(a) });
+      swapping = sa[0].k === 'swap';
+      if (swapping) for (const a of sa) list.push({ kind: 'aim', ship: a.target, pick: () => act(a) });
       else for (const a of sa) list.push({ kind: 'dest', at: a.dest.at, i: a.dest.i, owner, color: B.COLORS[owner], pick: () => act(a) });
       list.push({ kind: 'self', ship: G.sel.ship, pick: () => { if (sa.length === 1) act(sa[0]); } });
     }
@@ -992,11 +1082,18 @@
     B.setSelected(G.sel.ship);
     // Hinweistext
     let hint;
-    if (v.seven) hint = `<b>Noch ${v.seven.left} ${v.seven.left === 1 ? 'Schritt' : 'Schritte'}</b> – ` + (G.sel.ship === null ? 'wähle ein Schiff' : 'wähle das Zielfeld');
-    else if (G.sel.ship === null) hint = `${esc(info.hint)} <b>Wähle ein Schiff.</b>`;
-    else if (first.k === 'swap' || cur.find(a => a.ship === G.sel.ship).k === 'swap') hint = 'Mit welchem Schiff soll getauscht werden?';
-    else hint = `${esc(info.hint)} <b>Tippe auf das Ziel.</b>`;
-    setStatus(hint);
+    const lead = p && p.k === 'replay' ? `<b>Lotse:</b> Nutze ${esc(cardLabel(type))} selbst. ` : '';
+    if (p && p.k === 'split') hint = `<b>Noch ${p.left} ${p.left === 1 ? 'Schritt' : 'Schritte'}</b> – ` + (G.sel.ship === null ? 'wähle ein Schiff (auch eines deines Partners)' : 'wähle das Zielfeld');
+    else if (swapping) hint = 'Mit wem soll getauscht werden? Auch der Hai ist möglich.';
+    else if (G.sel.ship !== null) hint = `${lead}${esc(info.hint)} <b>Tippe auf das Ziel.</b>`;
+    else if (moves.length) hint = `${lead}${esc(info.hint)} <b>Wähle ein Schiff${plain.length ? ' – oder' : '.'}</b>`;
+    else hint = `${lead}${esc(info.hint)}`;
+    const btn = plain.length ? { label: PLAIN[plain[0].k] ? PLAIN[plain[0].k](plain[0]) : 'Ausspielen', go: () => act(plain[0]) } : null;
+    setStatus(hint, btn);
+  }
+  function cardType(id) {
+    const h = G.hand.find(x => x.card.id === id);
+    return h ? h.card.type : null;
   }
   function pickShip(id) {
     const sa = currentActs().filter(a => a.ship === id);
@@ -1008,7 +1105,7 @@
   function act(a) {
     if (!G.open || !G.session) return;
     const action = { k: a.k };
-    for (const key of ['card', 'as', 'ship', 'n', 'harbor', 'target', 'field']) if (a[key] !== undefined) action[key] = a[key];
+    for (const key of ['card', 'ship', 'n', 'harbor', 'target']) if (a[key] !== undefined) action[key] = a[key];
     if (a.k === 'give') G.giveSel = a.card;
     const keepGive = G.giveSel;
     G.open = false;
@@ -1028,7 +1125,7 @@
     const names = winners.map(name).join(' & ');
     Sound.win();
     const host = G.session.isHost;
-    const c = modal(`<div class="end-art"><img src="assets/whale.webp" alt="" draggable="false"></div>
+    const c = modal(`<div class="end-art"><img src="assets/ship.webp" alt="" draggable="false"></div>
       <p class="kicker">${mine ? 'Heimathafen erreicht' : 'Die Partie ist entschieden'}</p>
       <h2>${esc(names)} ${winners.length > 1 ? 'gewinnen' : 'gewinnt'}</h2>
       <div class="end-toks">${winners.map(token).join('')}</div>
@@ -1066,7 +1163,7 @@
   /* ---------- Menü ---------- */
   $('#btn-menu').onclick = () => {
     Sound.tap();
-    const c = modal(`<h3>Seegang</h3>
+    const c = modal(`<h3>Seefahrt</h3>
       <button class="btn wide" data-a="rules">Spielregeln</button>
       <button class="btn wide" data-a="sound">Ton: ${Sound.on ? 'an' : 'aus'}</button>
       <button class="btn wide" data-a="speed">Tempo: ${prefs.fast ? 'zügig' : 'gemütlich'}</button>

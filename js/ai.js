@@ -1,4 +1,4 @@
-/* Seegang – Computergegner.
+/* Seefahrt – Computergegner.
  * Bewertet jede erlaubte Aktion, indem er sie auf einer Kopie des Spielfelds ausführt
  * und die Lage aus Sicht des eigenen Teams einschätzt. Sieht nur, was ein Mensch auch sähe. */
 (function (root) {
@@ -8,35 +8,41 @@
 
   function shipValue(board, s, ring) {
     if (s.at === 'base' || s.at === 'none') return 0;
-    if (s.at === 'harbor') return 82 + s.i * 5;
+    if (s.at === 'harbor') return 88 + s.i;
     const S = E.startField(s.owner);
     const d = (S - s.i + RING) % RING;
-    let v = 12 + (s.fresh ? 0 : (RING - d) * 0.9);
-    // Wal liegt im Weg
-    if (board.whale >= 0) {
-      const wd = (board.whale - s.i + RING) % RING;
-      const toGo = s.fresh ? RING : (d === 0 ? RING : d);
-      if (wd > 0 && wd <= 13 && wd <= toGo) v -= 7 * (1 - wd / 20);
+    let progress = s.fresh ? 0 : RING - d;
+    // knapp hinter dem Startfeld: mit der 4 rückwärts in den Hafen
+    const k0 = (s.i - S + RING) % RING;
+    if (!s.fresh && k0 >= 1 && k0 <= 3) progress = Math.max(progress, 44 - k0 * 4);
+    let v = 12 + progress * 0.9;
+    if (s.fresh) return v;
+    let risk = 0;
+    // der Hai
+    if (board.shark >= 0) {
+      const sd = (s.i - board.shark + RING) % RING;
+      if (sd >= 1 && sd <= 6) risk += (7 - sd) / 6 * 0.3;
+      let first = true;
+      for (let k = 1; k < sd; k++) if (ring[(board.shark + k) % RING]) { first = false; break; }
+      if (first && sd > 0) risk += 0.06;
     }
-    // Gefahr: Gegner dicht dahinter können das Schiff schlagen
-    if (!s.fresh) {
-      let risk = 0;
-      const t = E.team(board, s.owner);
-      for (let k = 1; k <= 13; k++) {
-        const o = ring[(s.i - k + RING) % RING];
-        if (o && E.team(board, o.owner) !== t) risk += k === 4 ? 0.05 : 0.11;
-      }
-      const o4 = ring[(s.i + 4) % RING];
-      if (o4 && E.team(board, o4.owner) !== t) risk += 0.08;
-      // auf fremdem Startfeld, solange dort noch Schiffe in der Werft liegen
-      if (s.i % E.QUAD === 0) {
-        const own = s.i / E.QUAD;
-        if (own !== s.owner && E.team(board, own) !== t &&
-            board.ships.some(x => x.owner === own && x.at === 'base')) risk += 0.2;
-      }
-      v *= 1 - Math.min(0.6, risk);
+    // Gegner dicht dahinter können das Schiff schlagen (sofern niemand dazwischen liegt)
+    const t = E.team(board, s.owner);
+    for (let k = 1; k <= 12; k++) {
+      const o = ring[(s.i - k + RING) % RING];
+      if (!o) continue;
+      if (E.team(board, o.owner) !== t) risk += k === 5 || k === 11 ? 0.04 : 0.1;
+      break;
     }
-    return v;
+    const o4 = ring[(s.i + 4) % RING];
+    if (o4 && E.team(board, o4.owner) !== t) risk += 0.06;
+    // auf fremdem Startfeld, solange dort noch Schiffe in der Werft liegen
+    if (s.i % E.QUAD === 0) {
+      const own = s.i / E.QUAD;
+      if (own !== s.owner && E.team(board, own) !== t &&
+          board.ships.some(x => x.owner === own && x.at === 'base')) risk += 0.2;
+    }
+    return v * (1 - Math.min(0.7, risk));
   }
 
   function evaluate(board, myTeam) {
@@ -50,46 +56,83 @@
     }
     return score;
   }
+  function winScore(board, myTeam) {
+    for (const t of board.mode === 'team' ? [0, 1] : board.seats) {
+      if (E.teamHome(board, t)) return t === myTeam ? 2000 : -2000;
+    }
+    return null;
+  }
 
-  /* Bester erreichbarer Wert, wenn noch `left` Schritte der 7 zu ziehen sind. */
-  function bestSeven(board, seat, left, memo) {
-    const myTeam = E.team(board, seat);
-    if (left === 0 || E.teamHome(board, myTeam)) return evaluate(board, myTeam) + (E.teamHome(board, myTeam) ? 1000 : 0);
-    const key = E.boardKey(board) + '|' + left;
+  /* Bester erreichbarer Wert, wenn von der 5 noch `left` Schritte zu verteilen sind. */
+  function bestSplit(board, myTeam, persp, left, moved, memo) {
+    const w = winScore(board, myTeam);
+    if (w !== null) return w;
+    if (left === 0) return evaluate(board, myTeam);
+    const key = E.boardKey(board) + '|' + left + '|' + moved.slice().sort((a, b) => a - b).join(',');
     if (memo.has(key)) return memo.get(key);
     let best = -Infinity;
-    const ctrl = E.controlOwner(board, seat);
-    for (const ship of board.ships) {
-      if (ship.owner !== ctrl || ship.at === 'base' || ship.at === 'none') continue;
-      for (const opt of E.forward(board, ship, 1)) {
-        const b2 = E.cloneBoard(board);
-        E.effect(b2, { k: 'step', ship: ship.id, path: [opt.dest] }, []);
-        const v = bestSeven(b2, seat, left - 1, memo);
-        if (v > best) best = v;
+    for (const ship of E.splitShips(board, persp, moved)) {
+      for (let n = 1; n <= left; n++) {
+        for (const opt of E.forward(board, ship, n)) {
+          const b2 = E.cloneBoard(board);
+          E.effect(b2, { k: 'step', ship: ship.id, path: opt.path }, []);
+          const v = bestSplit(b2, myTeam, persp, left - n, moved.concat(ship.id), memo);
+          if (v > best) best = v;
+        }
       }
     }
+    if (best === -Infinity) best = evaluate(board, myTeam) - 30; // geht nicht auf – nicht erstrebenswert
     memo.set(key, best);
     return best;
   }
 
-  const CARD_COST = { pilot: 6, whale: 1.5, swap: 0.5, wake: 0.5 };
+  const KEEP = { pilot: 7, '1': 8, '12': 8, '7': 6, swap: 5, '4': 5, '5': 4, board: 4, shark: 3, storm: 3, '8': 3.5, vision: 1.5, trade: 1 };
+  const keepValue = c => (KEEP[c.type] !== undefined ? KEEP[c.type] : 2 + (+c.type) / 12);
+  const CARD_COST = { pilot: 2, swap: 1, '7': 0.8, board: 0.5 };
 
   function scoreAction(view, seat, a, memo) {
     const myTeam = E.team(view, seat);
+    const pend = view.pend;
     const b = E.cloneBoard(view);
-    E.effect(b, a, []);
+    const base = () => evaluate(b, myTeam);
     let score;
-    if (E.teamHome(b, myTeam)) score = 2000;
-    else if (a.k === 'seven' || a.k === 'step') {
-      const left = (a.k === 'seven' ? 7 : view.seven.left) - a.n;
-      score = bestSeven(b, seat, left, memo) + a.n * 0.01; // lieber wenige, lange Teilzüge
-    } else score = evaluate(b, myTeam);
-    if (a.card !== undefined) {
+    switch (a.k) {
+      case 'launch': case 'move': case 'swap': case 'shark':
+        E.effect(b, a, []);
+        score = base();
+        break;
+      case 'split': case 'step': {
+        E.effect(b, { k: 'step', ship: a.ship, path: a.path }, []);
+        const persp = pend && pend.k === 'split' ? pend.as : pend && pend.k === 'board' ? pend.victim : seat;
+        const left = a.k === 'split' ? E.SPLIT - a.n : pend.left - a.n;
+        const moved = (a.k === 'split' ? [] : pend.moved).concat(a.ship);
+        score = bestSplit(b, myTeam, persp, left, moved, memo);
+        break;
+      }
+      case 'pilot':
+        if (view.last) E.restore(b, view.last.snap, []);
+        if (b.shark < 0) E.sharkAppear(b, seat, []);
+        score = base() + 2.5;
+        break;
+      case 'skip': score = base() + (E.team(view, a.target) !== myTeam ? 3 : -6); break;
+      case 'board': score = base() + (E.team(view, a.target) !== myTeam ? 3 : 0.5); break;
+      case 'trade': score = base() + 0.3; break;
+      case 'vision': score = base() + 0.2; break;
+      case 'storm': score = base() + 1.2; break;
+      case 'discard': {
+        const c = view.hands[seat].find(x => x && x.id === a.card);
+        return -(c ? keepValue(c) : 0);
+      }
+      default: score = base();
+    }
+    const w = winScore(b, myTeam);
+    if (w !== null) score = w;
+    if (a.card !== undefined && !(pend && pend.k === 'board')) {
       const card = view.hands[seat].find(c => c && c.id === a.card);
-      const type = card ? card.type : a.as;
+      const type = card ? card.type : null;
       score -= CARD_COST[type] || 0;
       // Auslauf-Karten nicht verfahren, solange noch Schiffe in der Werft liegen
-      if ((type === 'A' || type === 'K') && a.k !== 'launch') {
+      if ((type === '1' || type === '12') && a.k !== 'launch') {
         const ctrl = E.controlOwner(view, seat);
         if (view.ships.some(s => s.owner === ctrl && s.at === 'base')) score -= 3;
       }
@@ -99,14 +142,12 @@
 
   function chooseGive(view, seat) {
     const hand = view.hands[seat].filter(Boolean);
-    const starts = hand.filter(c => c.type === 'A' || c.type === 'K');
-    const pilots = hand.filter(c => c.type === 'pilot');
-    if (starts.length + pilots.length >= 2 && starts.length) return { k: 'give', card: starts[0].id };
+    const starts = hand.filter(c => c.type === '1' || c.type === '12');
+    if (starts.length >= 2) return { k: 'give', card: starts[0].id };
     // sonst die Karte, die mir am wenigsten nützt
-    const keep = { pilot: 10, A: 9, K: 9, '7': 6, swap: 5, '4': 4, whale: 4, wake: 3 };
     let best = null, bestV = Infinity;
     for (const c of hand) {
-      const v = (keep[c.type] !== undefined ? keep[c.type] : 2 + (+c.type) / 12) + Math.random() * 0.5;
+      const v = keepValue(c) + Math.random() * 0.5;
       if (v < bestV) { bestV = v; best = c; }
     }
     return { k: 'give', card: best.id };
@@ -118,15 +159,15 @@
     if (!acts.length) return null;
     if (acts.length === 1) return acts[0];
     const memo = new Map();
-    const seen = new Map(); // gleiche Aktion mit gleichem Kartentyp nur einmal bewerten
+    const seen = new Set(); // gleiche Aktion mit gleichem Kartentyp nur einmal bewerten
+    const holder = view.pend && view.pend.k === 'board' ? view.pend.victim : seat;
     let best = null, bestV = -Infinity;
     for (const a of acts) {
-      let v;
-      const card = a.card !== undefined ? view.hands[seat].find(c => c && c.id === a.card) : null;
-      const key = (card ? card.type : '') + '|' + a.k + '|' + a.as + '|' + a.ship + '|' + a.n + '|' + a.harbor + '|' + a.target + '|' + a.field;
+      const card = a.card !== undefined ? view.hands[holder].find(c => c && c.id === a.card) : null;
+      const key = (card ? card.type : '') + '|' + a.k + '|' + a.ship + '|' + a.n + '|' + a.harbor + '|' + a.target;
       if (seen.has(key)) continue;
-      v = scoreAction(view, seat, a, memo) + Math.random() * 0.6;
-      seen.set(key, v);
+      seen.add(key);
+      const v = scoreAction(view, seat, a, memo) + Math.random() * 0.6;
       if (v > bestV) { bestV = v; best = a; }
     }
     return best;

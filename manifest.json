@@ -1,7 +1,7 @@
 {
-  "name": "Seegang",
-  "short_name": "Seegang",
-  "description": "Ein Kartenspiel um Wind, Wal und Heimathafen.",
+  "name": "Seefahrt",
+  "short_name": "Seefahrt",
+  "description": "Ein Kartenspiel um Wind, Hai und Heimathafen.",
   "lang": "de",
   "start_url": "./index.html",
   "scope": "./",
