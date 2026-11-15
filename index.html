@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#F7ECD6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Seegang">
+<title>Seegang</title>
+<meta name="description" content="Seegang – ein Kartenspiel um Wind, Wal und Heimathafen. Allein, zu zweit oder zu viert, lokal oder online.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="preload" href="fonts/fraunces-latin-full-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Druckkörnung und raue Tintenkante -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+<div class="grain" aria-hidden="true"></div>
+
+<main id="app">
+
+  <!-- Titel -->
+  <section class="screen" id="scr-title">
+    <div class="title-wrap">
+      <div class="title-art"><img src="assets/ship.webp" alt="" draggable="false"></div>
+      <h1 class="wordmark">Seegang</h1>
+      <p class="tagline">Ein Kartenspiel um Wind, Wal und Heimathafen</p>
+      <nav class="menu">
+        <button class="btn primary" data-go="resume" id="btn-resume" hidden>Partie fortsetzen</button>
+        <button class="btn primary" data-go="solo">Allein gegen den Computer</button>
+        <button class="btn" data-go="local">Gemeinsam an einem Gerät</button>
+        <button class="btn" data-go="online">Online spielen</button>
+        <button class="btn ghost" data-go="rules">Spielregeln</button>
+      </nav>
+    </div>
+  </section>
+
+  <!-- Aufstellung (allein / lokal) -->
+  <section class="screen" id="scr-setup" hidden>
+    <div class="sheet">
+      <button class="back" data-go="title" aria-label="Zurück">←</button>
+      <h2 id="setup-title">Neue Partie</h2>
+      <div class="seg" id="setup-mode">
+        <button data-mode="team" class="on">Zwei Teams <small>4 Flotten</small></button>
+        <button data-mode="duel">Duell <small>2 Flotten</small></button>
+      </div>
+      <div class="seats" id="setup-seats"></div>
+      <p class="fine" id="setup-note"></p>
+      <button class="btn primary wide" id="setup-start">Leinen los</button>
+    </div>
+  </section>
+
+  <!-- Online -->
+  <section class="screen" id="scr-online" hidden>
+    <div class="sheet">
+      <button class="back" data-go="title" aria-label="Zurück">←</button>
+      <h2>Online spielen</h2>
+      <div id="online-entry">
+        <label class="field"><span>Dein Name</span>
+          <input id="online-name" maxlength="14" autocomplete="off" placeholder="Name"></label>
+        <button class="btn primary wide" id="online-host">Raum eröffnen</button>
+        <div class="or"><span>oder</span></div>
+        <label class="field"><span>Raum-Code</span>
+          <input id="online-code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="z. B. KLIPP" class="code-input"></label>
+        <button class="btn wide" id="online-join">Beitreten</button>
+        <p class="fine" id="online-msg"></p>
+      </div>
+      <div id="online-lobby" hidden>
+        <div class="roomcode">
+          <span>Raum</span>
+          <strong id="lobby-code">·····</strong>
+          <button class="btn small" id="lobby-share">Einladung teilen</button>
+        </div>
+        <div class="seg" id="lobby-mode">
+          <button data-mode="team" class="on">Zwei Teams <small>4 Flotten</small></button>
+          <button data-mode="duel">Duell <small>2 Flotten</small></button>
+        </div>
+        <div class="seats" id="lobby-seats"></div>
+        <p class="fine" id="lobby-note"></p>
+        <button class="btn primary wide" id="lobby-start">Leinen los</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Spiel -->
+  <section class="screen" id="scr-game" hidden>
+    <header class="bar">
+      <button class="icon-btn" id="btn-menu" aria-label="Menü">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="bar-mid"><span class="bar-name">Seegang</span><span class="bar-round" id="round-info"></span></div>
+      <button class="icon-btn" id="btn-rules" aria-label="Spielregeln">
+        <svg viewBox="0 0 24 24"><path d="M9.2 9.2a2.9 2.9 0 1 1 4.6 2.4c-1 .7-1.8 1.300-1.8 2.600M12 17.600v.2"/><circle cx="12" cy="12" r="9.200"/></svg>
+      </button>
+    </header>
+
+    <div class="table" id="table">
+      <div class="chip" data-rel="1"></div>
+      <div class="chip" data-rel="2"></div>
+      <div class="board-box" id="board-box">
+        <svg id="board" viewBox="0 0 1000 1000" aria-label="Spielfeld"></svg>
+        <div class="pile" id="pile"></div>
+        <div class="banner" id="banner"></div>
+      </div>
+      <div class="chip" data-rel="0"></div>
+      <div class="chip" data-rel="3"></div>
+    </div>
+
+    <footer class="dock">
+      <div class="status" id="status"></div>
+      <div class="hand" id="hand"></div>
+    </footer>
+  </section>
+</main>
+
+<div class="fly-layer" id="fly"></div>
+<div class="veil" id="veil" hidden></div>
+<div class="modal" id="modal" hidden><div class="modal-card" id="modal-card"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="vendor/peerjs.min.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/cards.js"></script>
+<script src="js/board.js"></script>
+<script src="js/net.js"></script>
+<script src="js/session.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
