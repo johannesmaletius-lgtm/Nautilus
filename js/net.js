@@ -52,7 +52,7 @@
         return;
       }
       if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
-        handlers.error('Keine Verbindung zum Vermittlungsserver. Bitte prüfe deine Internetverbindung.');
+        handlers.error('Keine Verbindung zum Vermittlungsserver. Prüfe deine Internetverbindung – in eingebetteten Vorschauen ist der Online-Modus gesperrt.');
       } else if (err.type !== 'peer-unavailable') {
         handlers.error('Verbindungsfehler: ' + err.type);
       }
@@ -77,7 +77,7 @@
       clearTimeout(timer);
       if (closed) return;
       if (err.type === 'peer-unavailable') handlers.error('Diesen Raum gibt es nicht (mehr).');
-      else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') handlers.error('Keine Verbindung zum Vermittlungsserver.');
+      else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') handlers.error('Keine Verbindung zum Vermittlungsserver. Prüfe deine Internetverbindung – in eingebetteten Vorschauen ist der Online-Modus gesperrt.');
       else handlers.error('Verbindungsfehler: ' + err.type);
     });
     return {
