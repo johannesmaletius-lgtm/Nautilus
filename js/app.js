@@ -467,16 +467,42 @@
     while (m.children.length > n) m.lastChild.remove();
     while (m.children.length < n) m.appendChild(document.createElement('i'));
   }
-  /* Weitblick: offen gezeigte Karten in der Spielerleiste */
+  /* Weitblick (und Entern): sichtbare fremde Karten in der Spielerleiste – antippen zeigt sie groß */
   function showOpen(seat, view) {
     const el = chipEl(seat); if (!el) return;
     const m = el.querySelector('.minis'); if (!m) return;
-    const cards = seat !== G.viewer && view.open[seat] ? view.hands[seat].filter(Boolean) : [];
+    const cards = seat !== G.viewer ? (view.hands[seat] || []).filter(Boolean) : [];
     m.classList.toggle('open', cards.length > 0);
-    if (!cards.length) { $$('i', m).forEach(i => { i.className = ''; i.textContent = ''; }); return; }
-    m.innerHTML = cards.map(c => `<i class="face" title="${esc(Cards.INFO[c.type].name)}">${esc(Cards.short(c.type))}</i>`).join('');
+    el.classList.toggle('peekable', cards.length > 0);
+    if (!cards.length) { $$('i', m).forEach(i => { i.className = ''; i.innerHTML = ''; }); return; }
+    m.innerHTML = cards.map(c => {
+      const d = Cards.INFO[c.type];
+      return `<i class="mface" title="${esc(d.name)}">${d.icon ? Cards.ICON[d.icon] : esc(d.big)}</i>`;
+    }).join('');
     G.counts[seat] = cards.length;
   }
+  /* Karten anderer Spieler groß zeigen. groups: [{seat, cards}] */
+  function peekCards(title, groups, note) {
+    return new Promise(res => {
+      const rows = groups.map(g => `<div class="peek-row"><div class="peek-who">${token(g.seat)}<b>${esc(name(g.seat))}</b></div><div class="peek-cards" data-seat="${g.seat}">${g.cards.length ? '' : '<span class="fine">keine Karten</span>'}</div></div>`).join('');
+      const c = modal(`<h3>${esc(title)}</h3>${note ? `<p class="ask">${note}</p>` : ''}${rows}<button class="btn primary wide" data-a="ok">Weiter</button>`, { cls: 'peek' });
+      groups.forEach(g => {
+        const box = c.querySelector(`.peek-cards[data-seat="${g.seat}"]`);
+        for (const card of g.cards) box.appendChild(Cards.el(card));
+      });
+      let done = false;
+      const finish = () => { if (done) return; done = true; closeModal(); res(); };
+      c.querySelector('[data-a="ok"]').onclick = () => { Sound.tap(); finish(); };
+      $('#modal').onclick = e => { if (e.target === $('#modal')) finish(); };
+    });
+  }
+  $$('.chip').forEach(chip => chip.addEventListener('click', () => {
+    if (!G.view || !chip.classList.contains('peekable')) return;
+    const seat = +chip.dataset.seat, cards = (G.view.hands[seat] || []).filter(Boolean);
+    if (seat === G.viewer || !cards.length) return;
+    Sound.tap();
+    peekCards(`Die Karten von ${name(seat)}`, [{ seat, cards }]);
+  }));
   function setActive(seat) {
     G.active = seat;
     $$('.chip').forEach(c => c.classList.toggle('active', seat !== null && +c.dataset.seat === seat && !c.classList.contains('none')));
@@ -656,6 +682,11 @@
         case 'discard': await doDiscard(e); break;
         case 'board':
           setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'enterst', 'entert')} <b>${esc(isYou(e.victim) ? 'dich' : name(e.victim))}</b>` + (e.none ? ' – aber keine Karte lässt sich nutzen' : ''));
+          if (e.cards && e.seat === G.viewer && canAct()) {
+            await sleep(350);
+            await peekCards(`Die Karten von ${name(e.victim)}`, [{ seat: e.victim, cards: e.cards }],
+              e.none ? 'Keine davon lässt sich für ihn nutzen – das Entern verpufft.' : 'Spiele eine davon für ihn: eine Zahlenkarte, einen Kurswechsel oder den Hai. Die übrigen behält er.');
+          }
           if (!e.none && e.seat === G.viewer && canAct()) { syncHand(u.view.hands[e.victim].filter(Boolean)); G.hand.forEach(h => h.el.classList.add('new')); }
           await sleep(e.none ? 1100 : 500);
           break;
@@ -664,9 +695,14 @@
           await sleep(500);
           break;
         case 'vision':
-          banner('Weitblick', 'Karten auf den Tisch');
+          setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'siehst', 'sieht')} bis zum Rundenende alle Karten`);
+          banner('Weitblick', e.hands && e.seat === G.viewer ? 'Du siehst alle Karten' : 'sieht alle Karten');
           for (const s of u.view.seats) showOpen(s, u.view);
           await sleep(900);
+          if (e.hands && e.seat === G.viewer && canAct()) {
+            const groups = u.view.seats.filter(s => s !== e.seat).map(s => ({ seat: s, cards: e.hands[s] || [] }));
+            await peekCards('Weitblick', groups, 'Bis zum Ende der Runde siehst du die Karten der anderen. Tippe auf einen Spieler, um seine Karten wieder anzusehen.');
+          }
           break;
         case 'storm':
           banner('Sturmfront', 'Karten nach rechts');
@@ -813,8 +849,8 @@
     const hits = e.path.filter(p => p.hit !== undefined).length;
     if (hits) toast(hits === 1 ? 'Der Hai hat ein Schiff erwischt.' : `Der Hai hat ${hits} Schiffe erwischt.`);
   }
-  async function doDiscard(e) {
-    setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'setzt', 'setzt')} aus und ${verb(e.seat, 'wirfst', 'wirft')} eine Karte ab`);
+  async function doDiscard(e, text) {
+    setStatus(text || `<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'setzt', 'setzt')} aus und ${verb(e.seat, 'wirfst', 'wirft')} eine Karte ab`);
     Sound.fold();
     const pile = pileRect(), rot = Math.random() * 30 - 15;
     let el = takeHandCard(e.card.id), from;
@@ -833,29 +869,7 @@
     await sleep(300);
   }
   async function doFold(e) {
-    setStatus(`<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'kannst', 'kann')} nicht ziehen und ${verb(e.seat, 'setzt', 'setzt')} aus`);
-    Sound.fold();
-    const pile = pileRect();
-    const jobs = [];
-    const chip = chipEl(e.seat);
-    e.cards.forEach((card, k) => {
-      const rot = Math.random() * 30 - 15;
-      let el = e.seat === G.viewer ? takeHandCard(card.id) : null;
-      let from;
-      if (el) from = Object.assign(rectOf(el), { w: G.cw });
-      else {
-        el = Cards.el(card, { down: true });
-        const src = chip ? rectOf(chip.querySelector('.minis')) : pile;
-        from = { x: src.x, y: src.y, w: Math.max(22, pile.w * 0.5) };
-        setTimeout(() => el.classList.remove('down'), 60 + k * 70);
-      }
-      jobs.push(flyCard(el, from, { x: pile.x, y: pile.y, w: pile.w }, { dur: 520, rot, delay: k * 70 }).then(() => toPile(el, rot)));
-    });
-    setCount(e.seat, 0);
-    layoutHand();
-    await Promise.all(jobs);
-    setFlag(e.seat, 'setzt aus');
-    await sleep(500);
+    await doDiscard(e, `<b>${esc(who(e.seat))}</b> ${verb(e.seat, 'kannst', 'kann')} nicht ziehen und ${verb(e.seat, 'wirfst', 'wirft')} eine Karte ab`);
   }
 
   /* ---------- Gerät weitergeben ---------- */
@@ -986,10 +1000,9 @@
     G.acts = E.legalActions(v, me);
     G.open = true;
     const only = G.acts.length === 1 ? G.acts[0].k : null;
-    if (only === 'fold' || only === 'pass') {
+    if (only === 'pass') {
       G.hand.forEach(h => h.el.classList.add('dim'));
-      setStatus(only === 'fold' ? 'Keine deiner Karten lässt sich spielen.' : 'Keine weitere Karte lässt sich spielen.',
-        { label: only === 'fold' ? 'Aussetzen' : 'Weiter', go: () => act(G.acts[0]) });
+      setStatus('Keine weitere Karte lässt sich spielen.', { label: 'Weiter', go: () => act(G.acts[0]) });
       B.setTargets([]);
       return;
     }
@@ -1020,7 +1033,7 @@
     if (boardFirst()) return;
     if (!G.acts.some(a => a.card === id)) {
       const h = G.hand.find(x => x.card.id === id);
-      if (h) { toast('Diese Karte lässt sich gerade nicht spielen.', 1600); anim(h.el, [{ translate: '0 0' }, { translate: '-5px 0' }, { translate: '5px 0' }, { translate: '0 0' }], { duration: 260 }); }
+      if (h) { toast(cardWhy(h.card.type), 3600); anim(h.el, [{ translate: '0 0' }, { translate: '-5px 0' }, { translate: '5px 0' }, { translate: '0 0' }], { duration: 260 }); }
       return;
     }
     if (G.sel.card === id) { G.sel = { card: null, ship: null }; layoutHand(); updateTargets(); return; }
@@ -1029,6 +1042,11 @@
     updateTargets();
   }
 
+  function cardWhy(type) {
+    const v = G.view, p = v.pend;
+    if (v.skip[G.viewer] > 0 && !(p && p.k === 'bonus')) return 'Du setzt aus und wirfst nur eine Karte ab.';
+    return E.blockReason(v, p && p.k === 'board' ? p.victim : G.viewer, type);
+  }
   function currentActs() {
     if (boardFirst()) return G.acts;
     if (G.sel.card === null) return [];
@@ -1043,7 +1061,7 @@
 
   const PLAIN = {
     skip: a => `${name(a.target)} aussetzen lassen`, shark: () => 'Hai losschicken', pilot: () => 'Lotse rufen',
-    board: () => 'Entern', trade: () => 'Handeln', vision: () => 'Karten aufdecken', storm: () => 'Sturm auslösen', discard: () => 'Abwerfen',
+    board: () => 'Entern', trade: () => 'Handeln', vision: () => 'Karten ansehen', storm: () => 'Sturm auslösen', discard: () => 'Abwerfen', fold: () => 'Abwerfen',
   };
   function updateTargets() {
     const v = G.view, cur = currentActs(), list = [];
@@ -1053,6 +1071,7 @@
       if (G.open && v.phase === 'play' && v.turn === G.viewer) {
         if (p && p.k === 'board') setStatus(`<b>Du enterst ${esc(name(p.victim))}</b> – spiele eine seiner Karten für ihn`);
         else if (v.skip[G.viewer] > 0 && !(p && p.k === 'bonus')) setStatus('<b>Du setzt aus</b> – wähle eine Karte zum Abwerfen');
+        else if (G.acts.length && G.acts.every(a => a.k === 'fold')) setStatus('<b>Keine Karte lässt sich spielen</b> – wähle eine Karte zum Abwerfen');
         else if (p && p.k === 'bonus') setStatus('<b>Sturmfront</b> – du darfst noch eine Karte spielen');
         else setStatus('<b>Du bist am Zug</b> – wähle eine Karte');
       }
@@ -1065,25 +1084,29 @@
     const shipIds = Array.from(new Set(moves.map(a => a.ship)));
     if (G.sel.ship !== null && !shipIds.includes(G.sel.ship)) G.sel.ship = null;
     if (shipIds.length === 1 && G.sel.ship === null && !plain.length) G.sel.ship = shipIds[0];
-    for (const id of shipIds) {
-      if (id === G.sel.ship) continue;
-      list.push({ kind: 'ship', ship: id, pick: () => pickShip(id) });
-    }
     let swapping = false;
     if (G.sel.ship !== null) {
       const sa = moves.filter(a => a.ship === G.sel.ship);
       const owner = v.ships[G.sel.ship].owner;
       swapping = sa[0].k === 'swap';
+      // Tauschpartner zuerst: sie liegen genau auf den anderen wählbaren Schiffen und müssen beim Tippen gewinnen
       if (swapping) for (const a of sa) list.push({ kind: 'aim', ship: a.target, pick: () => act(a) });
       else for (const a of sa) list.push({ kind: 'dest', at: a.dest.at, i: a.dest.i, owner, color: B.COLORS[owner], pick: () => act(a) });
-      list.push({ kind: 'self', ship: G.sel.ship, pick: () => { if (sa.length === 1) act(sa[0]); } });
+      list.push({ kind: 'self', ship: G.sel.ship, pick: () => { if (sa.length === 1) act(sa[0]); else deselectShip(); } });
+    }
+    const aimed = new Set(list.filter(t => t.kind === 'aim').map(t => t.ship));
+    for (const id of shipIds) {
+      if (id === G.sel.ship || aimed.has(id)) continue;
+      list.push({ kind: 'ship', ship: id, pick: () => pickShip(id) });
     }
     B.setTargets(list, deselect);
     B.setSelected(G.sel.ship);
     // Hinweistext
     let hint;
     const lead = p && p.k === 'replay' ? `<b>Lotse:</b> Nutze ${esc(cardLabel(type))} selbst. ` : '';
-    if (p && p.k === 'split') hint = `<b>Noch ${p.left} ${p.left === 1 ? 'Schritt' : 'Schritte'}</b> – ` + (G.sel.ship === null ? 'wähle ein Schiff (auch eines deines Partners)' : 'wähle das Zielfeld');
+    if (plain.length && plain[0].k === 'fold') hint = `${esc(cardWhy(type))} <b>Abwerfen?</b>`;
+    else if (plain.length && plain[0].k === 'discard') hint = 'Diese Karte abwerfen?';
+    else if (p && p.k === 'split') hint = `<b>Noch ${p.left} ${p.left === 1 ? 'Schritt' : 'Schritte'}</b> – ` + (G.sel.ship === null ? 'wähle ein Schiff (auch eines deines Partners)' : 'wähle das Zielfeld');
     else if (swapping) hint = 'Mit wem soll getauscht werden? Auch der Hai ist möglich.';
     else if (G.sel.ship !== null) hint = `${lead}${esc(info.hint)} <b>Tippe auf das Ziel.</b>`;
     else if (moves.length) hint = `${lead}${esc(info.hint)} <b>Wähle ein Schiff${plain.length ? ' – oder' : '.'}</b>`;
@@ -1095,6 +1118,10 @@
     const h = G.hand.find(x => x.card.id === id);
     return h ? h.card.type : null;
   }
+  function deselectShip() {
+    G.sel.ship = null;
+    updateTargets();
+  }
   function pickShip(id) {
     const sa = currentActs().filter(a => a.ship === id);
     if (sa.length === 1 && sa[0].k !== 'swap') { act(sa[0]); return; }
@@ -1105,7 +1132,7 @@
   function act(a) {
     if (!G.open || !G.session) return;
     const action = { k: a.k };
-    for (const key of ['card', 'ship', 'n', 'harbor', 'target']) if (a[key] !== undefined) action[key] = a[key];
+    for (const key of ['card', 'ship', 'n', 'harbor', 'bay', 'target']) if (a[key] !== undefined) action[key] = a[key];
     if (a.k === 'give') G.giveSel = a.card;
     const keepGive = G.giveSel;
     G.open = false;

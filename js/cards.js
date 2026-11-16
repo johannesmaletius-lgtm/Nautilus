@@ -25,7 +25,7 @@
     '1': { big: '1', cap: 'Ablegen', name: '1 – Ablegen', hint: 'Ein Schiff läuft aus der Werft aus – oder fährt 1 Feld vor.' },
     '2': { big: '2', cap: 'Vorstoß', name: '2 – Vorstoß', hint: '2 Felder vorwärts.' },
     '3': { big: '3', cap: 'Weiterfahrt', name: '3 – Weiterfahrt', hint: '3 Felder vorwärts.' },
-    '4': { big: '4', cap: 'Kurskorrektur', name: '4 – Kurskorrektur', hint: '4 Felder vorwärts oder rückwärts.' },
+    '4': { big: '4', cap: 'Kurskorrektur', img: 'assets/card-4.webp', name: '4 – Kurskorrektur', hint: '4 Felder rückwärts – auch rückwärts über das Startfeld in den Hafen.' },
     '5': { big: '5', cap: 'Gemeinsame Fahrt', name: '5 – Gemeinsame Fahrt', hint: '5 Schritte auf deine Schiffe und die deines Partners verteilen.' },
     '6': { big: '6', cap: 'Lange Fahrt', name: '6 – Lange Fahrt', hint: '6 Felder vorwärts.' },
     '7': { big: '7', cap: 'Freie Passage', name: '7 – Freie Passage', hint: '7 Felder vorwärts. Wer auf dem Weg liegt, wird geschlagen.' },
@@ -33,13 +33,13 @@
     '9': { big: '9', cap: 'Volle Fahrt', name: '9 – Volle Fahrt', hint: '9 Felder vorwärts.' },
     '10': { big: '10', cap: 'Höchst&shy;geschwindigkeit', name: '10 – Höchstgeschwindigkeit', hint: '10 Felder vorwärts.' },
     '12': { big: '12', cap: 'Volle Kraft voraus', name: '12 – Volle Kraft voraus', hint: 'Ein Schiff läuft aus der Werft aus – oder fährt 12 Felder vor.' },
-    swap: { title: 'Kurswechsel', icon: 'swap', short: '⇄', name: 'Kurswechsel', hint: 'Zwei beliebige Schiffe – oder ein Schiff und der Hai – tauschen die Plätze.' },
-    board: { title: 'Entern', icon: 'board', short: '⚔', name: 'Entern', hint: 'Nimm die Karten deines linken Nachbarn und spiele eine davon für ihn.' },
-    pilot: { title: 'Lotse', icon: 'pilot', img: 'assets/compass.webp', short: 'L', name: 'Lotse', hint: 'Der Zug davor wird zurückgenommen – danach nutzt du die Karte selbst.' },
-    shark: { title: 'Weißer Hai', icon: 'shark', short: 'H', name: 'Weißer Hai', hint: 'Der Hai schwimmt bis zum nächsten Schiff und schlägt es.' },
-    trade: { title: 'Handel', icon: 'trade', short: '↔', name: 'Handel', hint: 'Tausche verdeckt eine Karte mit deinem Partner.' },
-    vision: { title: 'Weitblick', icon: 'vision', short: '◉', name: 'Weitblick', hint: 'Alle anderen zeigen bis zum Rundenende ihre Karten.' },
-    storm: { title: 'Sturmfront', icon: 'storm', short: 'S', name: 'Sturmfront', hint: 'Alle geben ihre Karten nach rechts weiter – dann spielst du noch eine.' },
+    swap: { title: 'Kurswechsel', icon: 'swap', img: 'assets/card-swap.webp', short: '⇄', name: 'Kurswechsel', hint: 'Zwei beliebige Schiffe auf dem Ring – oder ein Schiff und der Hai – tauschen die Plätze.' },
+    board: { title: 'Entern', icon: 'board', img: 'assets/card-board.webp', short: '⚔', name: 'Entern', hint: 'Sieh dir die Karten deines linken Nachbarn an und spiele eine davon für ihn.' },
+    pilot: { title: 'Lotse', icon: 'pilot', img: 'assets/card-pilot.webp', short: 'L', name: 'Lotse', hint: 'Der Zug davor wird zurückgenommen – danach nutzt du die Karte selbst.' },
+    shark: { title: 'Weißer Hai', icon: 'shark', img: 'assets/card-shark.webp', short: 'H', name: 'Weißer Hai', hint: 'Der Hai schwimmt bis zum nächsten Schiff und schlägt es.' },
+    trade: { title: 'Handel', icon: 'trade', img: 'assets/card-trade.webp', short: '↔', name: 'Handel', hint: 'Tausche verdeckt eine Karte mit deinem Partner.' },
+    vision: { title: 'Weitblick', icon: 'vision', img: 'assets/card-vision.webp', short: '◉', name: 'Weitblick', hint: 'Du siehst bis zum Rundenende die Karten aller anderen.' },
+    storm: { title: 'Sturmfront', icon: 'storm', img: 'assets/card-storm.webp', short: 'S', name: 'Sturmfront', hint: 'Alle geben ihre Karten nach rechts weiter – dann spielst du noch eine.' },
   };
 
   const WAVE = '<svg viewBox="0 0 60 8" class="wave"><path d="M2 5q3.500-5 7 0t7 0 7 0 7 0 7 0 7 0 7 0 7 0" fill="none" stroke="currentColor" stroke-width="1.300" stroke-linecap="round"/></svg>';
@@ -49,7 +49,10 @@
     if (!d) return '';
     const idx = d.icon ? ICON[d.icon] : '<b>' + d.big + '</b>';
     let art;
-    if (d.img) art = '<div class="art pic"><img src="' + d.img + '" alt="" draggable="false"></div><div class="ttl">' + d.title + '</div>';
+    if (d.img) {
+      const t = d.title || d.cap;
+      art = '<div class="art pic"><img src="' + d.img + '" alt="" draggable="false"></div><div class="ttl' + (t.length > 10 ? ' long' : '') + '">' + t + '</div>';
+    }
     else if (d.icon) art = '<div class="art glyph">' + ICON[d.icon] + '</div><div class="ttl">' + d.title + '</div>';
     else {
       const long = d.cap.replace(/&shy;/g, '').length > 12;

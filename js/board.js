@@ -4,7 +4,9 @@
   const SG = root.SG = root.SG || {};
   const E = SG.Engine;
   const NS = 'http://www.w3.org/2000/svg';
-  const C = 500, R = 450, A0 = 135;
+  const C = 500, R = 450, A0 = 135, BAY_R = 512;
+  // Zeichenfläche etwas größer als der Ring, damit die Buchten außen Platz haben
+  const VB0 = -44, VBW = 1088;
 
   const COLORS = ['#35689A', '#C4533F', '#4F7F45', '#DFA636'];
   const COLOR_NAMES = ['Blau', 'Rot', 'Grün', 'Gelb'];
@@ -18,6 +20,7 @@
   function pos(at, i, owner) {
     if (at === 'ring') return polar(R, A0 + i * 360 / E.RING);
     if (at === 'harbor') return polar(R - 47 * (i + 1), A0 + owner * 90);
+    if (at === 'bay') return polar(BAY_R, A0 + i * 360 / E.RING);
     return polar(526, A0 + owner * 90 + (i - 1.5) * 6.7);
   }
   function mk(tag, attrs, parent) {
@@ -30,6 +33,7 @@
   // Spielfiguren: ausgeschnittene Fotos der Schiffe, Standfläche auf der Feldmitte
   const FIG_H = 76, FIG_W = 60;
   const figure = seat => `assets/fig-${seat}.webp`;
+  const SHARK_H = 84, SHARK_W = 83;
 
   let svg, rot, gMarks, gShips, gFx, sharkEl, sharkIn;
   let ships = {};          // id -> {el, inner, owner}
@@ -76,6 +80,15 @@
         mk('circle', { cx: x, cy: y, r: 14, fill: '#F7ECD6', stroke: col, 'stroke-width': 2.2, 'stroke-dasharray': '4 4' }, g);
       }
     }
+    // Buchten: Verstecke vor dem Hai außen am Ring
+    for (const f of E.BAYS) {
+      const g = mk('g', { class: 'bay' }, fields);
+      const [x1, y1] = polar(R + 24, A0 + f * 360 / E.RING), [x2, y2] = polar(BAY_R - 18, A0 + f * 360 / E.RING);
+      mk('line', { x1, y1, x2, y2, stroke: '#1B5EB0', 'stroke-width': 2, opacity: 0.6 }, g);
+      const [bx, by] = pos('bay', f);
+      mk('circle', { cx: bx, cy: by, r: 19, fill: '#DCE9F3', stroke: '#1B5EB0', 'stroke-width': 2.4 }, g);
+      mk('path', { d: `M${bx - 10} ${by + 3}q2.500-4 5 0t5 0 5 0 5 0`, fill: 'none', stroke: '#1B5EB0', 'stroke-width': 1.8, 'stroke-linecap': 'round', opacity: 0.8 }, g);
+    }
     // Ringfelder
     for (let i = 0; i < E.RING; i++) {
       const [x, y] = pos('ring', i);
@@ -88,14 +101,14 @@
     }
     gMarks = mk('g', { class: 'marks' }, rot);
     gShips = mk('g', { class: 'ships' }, rot);
-    // Der Weiße Hai: Rückenflosse über den Wellen
+    // Der Weiße Hai: freigestellte Figur, bleibt aufrecht wie die Schiffe
     sharkEl = mk('g', { class: 'shark', style: 'display:none' }, gShips);
-    sharkIn = mk('g', { class: 'shark-in' }, sharkEl);
-    mk('circle', { r: 29, fill: NAVY, stroke: '#C9655C', 'stroke-width': 3.2 }, sharkIn);
-    const sUp = mk('g', { class: 'up' }, sharkIn);
-    mk('path', { d: 'M-17 7C-10 3-1-9 9-27C5-15 6-3 16 7Z', fill: '#9AA6B2', stroke: PAPER, 'stroke-width': 1.8, 'stroke-linejoin': 'round' }, sUp);
-    mk('path', { d: 'M-3-4C1-10 5-17 8-24', fill: 'none', stroke: '#C9D1D9', 'stroke-width': 1.6, 'stroke-linecap': 'round' }, sUp);
-    mk('path', { d: 'M-21 12q5.250-4.500 10.500 0t10.500 0 10.500 0 10.500 0', fill: 'none', stroke: PAPER, 'stroke-width': 2.6, 'stroke-linecap': 'round' }, sUp);
+    mk('circle', { class: 'guard', r: 23, fill: 'none', stroke: '#C9655C', 'stroke-width': 2.2, 'stroke-dasharray': '3.200 3.800' }, sharkEl);
+    const sUp = mk('g', { class: 'up' }, sharkEl);
+    mk('ellipse', { class: 'shade', cx: 3, cy: 5, rx: 28, ry: 9.5, fill: 'rgba(22,51,92,.34)' }, sUp);
+    sharkIn = mk('g', { class: 'shark-in' }, sUp);
+    const sImg = mk('image', { x: -SHARK_W / 2, y: -SHARK_H * 0.9, width: SHARK_W, height: SHARK_H }, sharkIn);
+    sImg.setAttribute('href', 'assets/fig-shark.webp');
     gFx = mk('g', { class: 'fx' }, rot);
     ships = {};
     targets = [];
@@ -364,8 +377,8 @@
   }
   function toBoard(ev) {
     const r = svg.getBoundingClientRect();
-    const x = (ev.clientX - r.left) / r.width * 1000 - C;
-    const y = (ev.clientY - r.top) / r.height * 1000 - C;
+    const x = VB0 + (ev.clientX - r.left) / r.width * VBW - C;
+    const y = VB0 + (ev.clientY - r.top) / r.height * VBW - C;
     const a = -rotDeg * Math.PI / 180;
     return [C + x * Math.cos(a) - y * Math.sin(a), C + x * Math.sin(a) + y * Math.cos(a)];
   }
@@ -387,8 +400,8 @@
     const r = svg.getBoundingClientRect();
     const a = rotDeg * Math.PI / 180;
     const x = xy[0] - C, y = xy[1] - C;
-    return [r.left + (C + x * Math.cos(a) - y * Math.sin(a)) / 1000 * r.width,
-            r.top + (C + x * Math.sin(a) + y * Math.cos(a)) / 1000 * r.height];
+    return [r.left + (C + x * Math.cos(a) - y * Math.sin(a) - VB0) / VBW * r.width,
+            r.top + (C + x * Math.sin(a) + y * Math.cos(a) - VB0) / VBW * r.height];
   }
 
   SG.Board = {

@@ -3,11 +3,15 @@
  *
  * Spielfeld: Ring mit 64 Feldern, im Uhrzeigersinn. Platz s startet auf Feld s*16;
  * dort zweigt auch sein Heimathafen (4 Liegeplätze) ab. Liegeplatz 0 liegt am Ring, 3 ganz innen.
- * Der Weiße Hai ist eine eigene Figur auf dem Ring (state.shark, -1 = noch nicht aufgetaucht). */
+ * Der Weiße Hai ist eine eigene Figur auf dem Ring (state.shark, -1 = noch nicht aufgetaucht).
+ * Buchten: Neben den Feldern 8, 24, 40 und 56 liegt außen je eine Bucht (at: 'bay', i: Feldnummer).
+ * Sie ersetzt beim Anhalten das Ringfeld daneben; dort ist ein Schiff vor dem Hai sicher. */
 (function (root) {
   'use strict';
 
   const RING = 64, QUAD = 16, BERTHS = 4, FLEET = 4, HAND = 5, DIE = 6, SPLIT = 5;
+  const BAYS = [8, 24, 40, 56];
+  const isBay = f => f % QUAD === QUAD / 2;
 
   // Kartensatz: 104 Karten
   const DECK = [
@@ -18,7 +22,7 @@
   ];
   const DECK_SIZE = DECK.reduce((n, d) => n + d[1], 0);
   const TYPES = DECK.map(d => d[0]);
-  const STEPS = { '1': [1], '2': [2], '3': [3], '4': [4, -4], '6': [6], '7': [7], '8': [8], '9': [9], '10': [10], '12': [12] };
+  const STEPS = { '1': [1], '2': [2], '3': [3], '4': [-4], '6': [6], '7': [7], '8': [8], '9': [9], '10': [10], '12': [12] };
   const LAUNCH = { '1': true, '12': true };
   const NUMBERS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '12'];
   // Karten, deren Zug der Lotse zurücknehmen kann – und die man beim Entern für den anderen spielen darf
@@ -68,13 +72,21 @@
     for (const s of state.ships) if (s.at === 'ring') m[s.i] = s;
     return m;
   }
-  /* Der Hafen wird von innen nach außen belegt: Frei ist immer nur der innerste leere Liegeplatz.
-   * So bleibt nie eine Lücke, die niemand mehr erreichen kann. -1 = Hafen voll. */
-  function nextBerth(state, owner) {
-    let n = 0;
-    for (const s of state.ships) if (s.at === 'harbor' && s.owner === owner) n++;
-    return BERTHS - 1 - n;
+  /* Hafen: Liegeplatz 0 liegt am Ring, 3 ganz hinten. Im Hafen wird nicht übersprungen. */
+  function berthTaken(state, owner) {
+    const t = new Array(BERTHS).fill(false);
+    for (const s of state.ships) if (s.at === 'harbor' && s.owner === owner) t[s.i] = true;
+    return t;
   }
+  /* Wie weit ein Schiff vom Hafeneingang aus höchstens kommt: Anzahl freier Plätze bis zum ersten belegten. */
+  function harborRoom(state, owner, from) {
+    const t = berthTaken(state, owner);
+    let n = 0;
+    for (let j = from; j < BERTHS && !t[j]; j++) n++;
+    return n;
+  }
+  /* Innerster Liegeplatz, den man von außen noch erreichen kann (für die KI). -1 = keiner. */
+  function nextBerth(state, owner) { return harborRoom(state, owner, 0) - 1; }
   /* Nächster Platz nach `from`, der noch Karten hat und nicht aussetzt (ohne `from` selbst). */
   function nextActive(state, from) {
     let s = from;
@@ -93,7 +105,7 @@
   }
   function boardKey(b) {
     let k = '' + b.shark;
-    for (const s of b.ships) k += (s.at === 'ring' ? 'r' : s.at === 'harbor' ? 'h' : 'b') + s.i + (s.fresh ? 'f' : '');
+    for (const s of b.ships) k += (s.at === 'ring' ? 'r' : s.at === 'harbor' ? 'h' : s.at === 'bay' ? 'y' : 'b') + s.i + (s.fresh ? 'f' : '');
     return k;
   }
   function snapshot(state) {
@@ -105,70 +117,110 @@
 
   /* ---------- Zugmöglichkeiten eines Schiffs ----------
    * Kein Schiff darf überholt werden (Ausnahme: die 7 schlägt alles auf dem Weg – nur ein geschütztes
-   * Schiff auf seinem Startfeld hält auch sie auf). Den Hai darf man überholen, aber nicht auf ihm anhalten. */
+   * Schiff auf seinem Startfeld hält auch sie auf). Den Hai darf man überholen, aber nicht auf ihm anhalten.
+   * Schiffe in einer Bucht liegen neben dem Ring: Sie halten niemanden auf und werden nicht geschlagen.
+   * Ergebnis: [{ harbor, bay, dest, path }] */
   function forward(state, ship, n, sweep, ring) {
     const out = [];
-    if (ship.at !== 'ring') return out;
+    if (ship.at === 'harbor') {
+      // im Hafen weiter nach hinten – genau passend, ohne zu überspringen
+      if (n <= harborRoom(state, ship.owner, ship.i + 1)) {
+        const path = [];
+        for (let j = 1; j <= n; j++) path.push({ at: 'harbor', i: ship.i + j });
+        out.push({ harbor: true, dest: path[n - 1], path });
+      }
+      return out;
+    }
+    if (ship.at !== 'ring' && ship.at !== 'bay') return out;
     ring = ring || ringMap(state);
     const p = ship.i, S = startField(ship.owner);
     const passable = o => !o || o === ship || (sweep && !o.fresh);
-    // auf dem Ring bleiben
-    let ok = true, path = [];
-    for (let k = 1; k <= n; k++) {
-      const f = (p + k) % RING, o = ring[f];
-      if (k < n ? !passable(o) : (f === state.shark || (o && o.fresh))) { ok = false; break; }
+    // Weg bis vor das Ziel
+    let ok = true;
+    const path = [];
+    for (let k = 1; k < n; k++) {
+      const f = (p + k) % RING;
+      if (!passable(ring[f])) { ok = false; break; }
       path.push({ at: 'ring', i: f });
     }
-    if (ok) out.push({ harbor: false, dest: path[n - 1], path });
-    // über das eigene Startfeld in den Heimathafen – nicht direkt nach dem Auslaufen
+    if (ok) {
+      const f = (p + n) % RING, o = ring[f];
+      // auf dem Ring anhalten – nicht auf dem Hai, nicht auf einem geschützten Schiff
+      if (f !== state.shark && !(o && o.fresh)) {
+        const pr = path.concat([{ at: 'ring', i: f }]);
+        out.push({ harbor: false, dest: pr[n - 1], path: pr });
+      }
+      // statt des Ringfelds in die Bucht daneben
+      if (isBay(f) && bayFree(state, f)) {
+        const pb = path.concat([{ at: 'bay', i: f }]);
+        out.push({ harbor: false, bay: true, dest: pb[n - 1], path: pb });
+      }
+    }
+    // über das eigene Startfeld in den Heimathafen – nicht direkt nach dem Auslaufen.
+    // h Schritte im Hafen: Liegeplatz h-1, wenn bis dahin alles frei ist. Zu viele Schritte → vorbeifahren.
     if (!ship.fresh) {
       const d = (S - p + RING) % RING, h = n - d;
-      if (h >= 1 && h - 1 === nextBerth(state, ship.owner)) {
-        ok = true; path = [];
+      if (h >= 1 && h <= harborRoom(state, ship.owner, 0)) {
+        ok = true;
+        const ph = [];
         for (let k = 1; k <= d; k++) {
           const f = (p + k) % RING;
           if (!passable(ring[f])) { ok = false; break; }
-          path.push({ at: 'ring', i: f });
+          ph.push({ at: 'ring', i: f });
         }
         if (ok) {
-          for (let j = 0; j < h; j++) path.push({ at: 'harbor', i: j });
-          out.push({ harbor: true, dest: path[path.length - 1], path });
+          for (let j = 0; j < h; j++) ph.push({ at: 'harbor', i: j });
+          out.push({ harbor: true, dest: ph[ph.length - 1], path: ph });
         }
       }
     }
     return out;
   }
-  /* Rückwärts mit der 4. Steht das Schiff ein bis drei Felder hinter seinem Startfeld (also schon
-   * losgefahren), darf es rückwärts über das Startfeld in den Hafen einlaufen. */
+  /* Rückwärts mit der 4 (nur auf dem Ring und aus einer Bucht). Steht das Schiff ein bis drei Felder hinter
+   * seinem Startfeld (also schon losgefahren), darf es rückwärts über das Startfeld in den Hafen einlaufen. */
   function backward(state, ship, n, ring) {
     const out = [];
-    if (ship.at !== 'ring') return out;
+    if (ship.at !== 'ring' && ship.at !== 'bay') return out;
     ring = ring || ringMap(state);
     const p = ship.i, S = startField(ship.owner);
-    let ok = true, path = [];
-    for (let k = 1; k <= n; k++) {
+    let ok = true;
+    const path = [];
+    for (let k = 1; k < n; k++) {
       const f = (p - k + RING) % RING, o = ring[f];
-      if (k < n ? !!o : (f === state.shark || (o && o.fresh))) { ok = false; break; }
+      if (o && o !== ship) { ok = false; break; }
       path.push({ at: 'ring', i: f });
     }
-    if (ok) out.push({ harbor: false, dest: path[n - 1], path });
-    if (!ship.fresh) {
+    if (ok) {
+      const f = (p - n + RING) % RING, o = ring[f];
+      if (f !== state.shark && !(o && o.fresh)) {
+        const pr = path.concat([{ at: 'ring', i: f }]);
+        out.push({ harbor: false, dest: pr[n - 1], path: pr });
+      }
+      if (isBay(f) && bayFree(state, f)) {
+        const pb = path.concat([{ at: 'bay', i: f }]);
+        out.push({ harbor: false, bay: true, dest: pb[n - 1], path: pb });
+      }
+    }
+    if (!ship.fresh && ship.at === 'ring') {
       const k0 = (p - S + RING) % RING, h = n - k0;
-      if (k0 >= 1 && h >= 1 && h - 1 === nextBerth(state, ship.owner)) {
-        ok = true; path = [];
+      if (k0 >= 1 && h >= 1 && h <= harborRoom(state, ship.owner, 0)) {
+        ok = true;
+        const ph = [];
         for (let k = 1; k <= k0; k++) {
           const f = (p - k + RING) % RING;
           if (ring[f]) { ok = false; break; }
-          path.push({ at: 'ring', i: f });
+          ph.push({ at: 'ring', i: f });
         }
         if (ok) {
-          for (let j = 0; j < h; j++) path.push({ at: 'harbor', i: j });
-          out.push({ harbor: true, dest: path[path.length - 1], path });
+          for (let j = 0; j < h; j++) ph.push({ at: 'harbor', i: j });
+          out.push({ harbor: true, dest: ph[ph.length - 1], path: ph });
         }
       }
     }
     return out;
   }
+
+  const bayFree = (state, f) => !state.ships.some(s => s.at === 'bay' && s.i === f);
 
   function capture(ship) { ship.at = 'base'; ship.i = ship.id % FLEET; ship.fresh = false; }
 
@@ -210,10 +262,13 @@
     board.shark = f;
     ev.push(e);
   }
+  /* Lotse: Figuren auf den Stand vor dem letzten Zug. Wer inzwischen im Hafen liegt, bleibt dort –
+   * aus dem Hafen holt einen nichts mehr heraus. */
   function restore(board, snap, ev) {
     const moves = [];
     board.ships.forEach((s, k) => {
       const b = snap.ships[k];
+      if (s.at === 'harbor') return;
       if (s.at !== b.at || s.i !== b.i || s.fresh !== b.fresh) {
         moves.push({ ship: s.id, from: { at: s.at, i: s.i }, to: { at: b.at, i: b.i }, fresh: b.fresh });
         s.at = b.at; s.i = b.i; s.fresh = b.fresh;
@@ -229,7 +284,7 @@
    * Jedes Schiff zieht dabei höchstens einmal; alle fünf Schritte müssen gezogen werden. */
   function splitShips(board, persp, moved) {
     const p = partner(board, persp);
-    return board.ships.filter(s => (s.owner === persp || s.owner === p) && s.at === 'ring' && !moved.includes(s.id));
+    return board.ships.filter(s => (s.owner === persp || s.owner === p) && (s.at === 'ring' || s.at === 'harbor' || s.at === 'bay') && !moved.includes(s.id));
   }
   function canFinish(board, persp, left, moved, memo) {
     if (left === 0) return true;
@@ -258,7 +313,7 @@
           const b2 = cloneBoard(state);
           effect(b2, { k: 'step', ship: ship.id, path: opt.path }, []);
           if (canFinish(b2, persp, left - n, moved.concat(ship.id), memo)) {
-            out.push({ ship: ship.id, n, harbor: opt.harbor, dest: opt.dest, path: opt.path });
+            out.push({ ship: ship.id, n, harbor: opt.harbor, bay: opt.bay, dest: opt.dest, path: opt.path });
           }
         }
       }
@@ -285,7 +340,7 @@
       for (const n of STEPS[type]) {
         for (const ship of mine) {
           const opts = n > 0 ? forward(state, ship, n, type === '7', ring) : backward(state, ship, -n, ring);
-          for (const o of opts) out.push({ k: 'move', ship: ship.id, n, harbor: o.harbor, dest: o.dest, path: o.path });
+          for (const o of opts) out.push({ k: 'move', ship: ship.id, n, harbor: o.harbor, bay: o.bay, dest: o.dest, path: o.path });
         }
       }
     }
@@ -299,9 +354,10 @@
         for (const o of splitOptions(state, persp, SPLIT, [])) out.push(Object.assign({ k: 'split' }, o));
         break;
       case 'swap': {
-        const cand = state.ships.filter(s => s.at === 'ring' && !s.fresh);
+        // zwei beliebige Schiffe auf dem Ring – eigene, gegnerische, die des Partners, auch geschützte
+        const cand = state.ships.filter(s => s.at === 'ring');
         for (const a of cand) {
-          for (const b of cand) if (b.owner !== a.owner) out.push({ k: 'swap', ship: a.id, target: b.id });
+          for (const b of cand) if (b !== a) out.push({ k: 'swap', ship: a.id, target: b.id });
           if (state.shark >= 0) out.push({ k: 'swap', ship: a.id, target: -1 });
         }
         break;
@@ -323,13 +379,65 @@
         break;
       }
       case 'vision':
-        if (state.seats.some(s => s !== persp && !state.open[s] && state.hands[s].length)) out.push({ k: 'vision' });
+        if (!state.open[persp] && state.seats.some(s => s !== persp && state.hands[s].length)) out.push({ k: 'vision' });
         break;
       case 'storm':
         out.push({ k: 'storm' });
         break;
     }
     return out;
+  }
+
+  /* Warum eine Karte gerade nicht geht – als Satz für die Oberfläche. persp wie bei typeActions. */
+  function blockReason(state, persp, type) {
+    const p = state.pend;
+    if (p && p.k === 'board' && !MOVES.has(type)) return 'Beim Entern darfst du für ihn nur eine Zahlenkarte, einen Kurswechsel oder den Hai spielen.';
+    const ctrl = controlOwner(state, persp);
+    const mine = state.ships.filter(s => s.owner === ctrl);
+    const out = mine.filter(s => s.at === 'ring' || s.at === 'bay');
+    const docked = mine.some(s => s.at === 'base');
+    if (STEPS[type] || type === '5') {
+      const movable = out.length || mine.some(s => s.at === 'harbor' && s.i < BERTHS - 1);
+      if (!movable) {
+        if (LAUNCH[type]) {
+          const S = startField(ctrl), o = state.ships.find(s => s.at === 'ring' && s.i === S);
+          if (state.shark === S) return 'Der Hai liegt auf deinem Startfeld – dort kann gerade kein Schiff auslaufen.';
+          if (o && o.fresh) return 'Auf deinem Startfeld liegt noch ein geschütztes Schiff – es muss erst losfahren.';
+        }
+        return docked ? 'Du hast kein Schiff unterwegs. Zum Auslaufen aus der Werft brauchst du eine 1 oder eine 12.'
+          : 'Keines deiner Schiffe kann sich bewegen.';
+      }
+      if (type === '5') return 'Die 5 muss vollständig aufgehen: fünf Schritte auf deine Schiffe' + (partner(state, persp) !== null ? ' und die deines Partners' : '') + ', jedes Schiff höchstens einmal.';
+      const ring = ringMap(state), n = Math.abs(STEPS[type][0]), back = STEPS[type][0] < 0, sweep = type === '7';
+      const why = new Set();
+      for (const s of out) {
+        let blocked = null;
+        for (let k = 1; k < n; k++) {
+          const o = ring[(s.i + (back ? -k : k) + RING) % RING];
+          if (o && o !== s && (!sweep || o.fresh)) { blocked = o; break; }
+        }
+        const f = (s.i + (back ? -n : n) + RING) % RING;
+        if (blocked) why.add(sweep ? 'Ein geschütztes Schiff auf seinem Startfeld hält auch die 7 auf.'
+          : 'Ein Schiff liegt im Weg – überholen darf man nur mit der 7.');
+        else if (f === state.shark) why.add('Auf dem Feld des Hais darf man nicht anhalten.');
+        else if (ring[f] && ring[f].fresh) why.add('Im Ziel liegt ein geschütztes Schiff auf seinem Startfeld.');
+      }
+      if (!out.length) why.add('Im Hafen ist nicht genug Platz für so viele Schritte.');
+      return why.size ? Array.from(why).join(' ') : 'Mit dieser Karte ist gerade kein Zug möglich.';
+    }
+    switch (type) {
+      case 'swap': return 'Für einen Kurswechsel müssen zwei Schiffe auf dem Ring sein – oder ein Schiff und der Hai.';
+      case 'shark': return state.shark < 0 ? 'Der Hai ist noch nicht aufgetaucht – er erscheint mit dem ersten Lotsen.'
+        : 'Der Hai findet kein Schiff, das er erreichen kann.';
+      case 'pilot': return 'Der Lotse braucht einen Zug direkt davor, den er zurücknehmen kann (Zahlenkarte, Kurswechsel oder Hai).';
+      case 'board': return 'Dein linker Nachbar hat keine Karten mehr.';
+      case 'trade':
+        if (partner(state, persp) === null) return 'Handel geht nur im Teamspiel.';
+        if (!state.hands[partner(state, persp)].length) return 'Dein Partner hat keine Karten mehr.';
+        return 'Zum Handeln brauchst du außer dieser noch eine Karte.';
+      case 'vision': return state.open[persp] ? 'Du siehst die Karten der anderen schon.' : 'Die anderen haben keine Karten mehr.';
+    }
+    return 'Diese Karte lässt sich gerade nicht spielen.';
   }
 
   function cardActions(state, persp, card, cache) {
@@ -364,13 +472,17 @@
     if (!bonus && state.skip[seat] > 0) return hand.filter(Boolean).map(c => ({ k: 'discard', card: c.id }));
     const out = [], cache = {};
     for (const card of hand) if (card) out.push.apply(out, cardActions(state, seat, card, cache));
-    if (!out.length) out.push({ k: bonus ? 'pass' : 'fold' });
+    // Nichts spielbar: eine Karte abwerfen (nach einer Sturmfront einfach weiter)
+    if (!out.length) {
+      if (bonus) out.push({ k: 'pass' });
+      else for (const c of hand) if (c) out.push({ k: 'fold', card: c.id });
+    }
     return out;
   }
 
   function sameAction(a, b) {
     return a.k === b.k && a.card === b.card && a.ship === b.ship &&
-      a.n === b.n && !!a.harbor === !!b.harbor && a.target === b.target;
+      a.n === b.n && !!a.harbor === !!b.harbor && !!a.bay === !!b.bay && a.target === b.target;
   }
 
   /* ---------- Wirkung einer Aktion auf die Figuren (ohne Karten/Zugfolge) ---------- */
@@ -404,7 +516,7 @@
       case 'swap': {
         if (action.target === -1) {
           const a = { at: 'ring', i: ship.i }, f = board.shark;
-          board.shark = ship.i; ship.i = f;
+          board.shark = ship.i; ship.i = f; ship.fresh = false;
           ev.push({ t: 'swap', a: ship.id, b: -1, posA: { at: 'ring', i: f }, posB: a });
         } else {
           const other = board.ships[action.target];
@@ -495,7 +607,7 @@
       const n = 1 + Math.floor(rnd(state) * DIE);
       const from = state.shark, path = rollPath(state, n);
       runShark(state, path);
-      state.last = null;
+      // Der Lotse bleibt danach spielbar: Er nimmt den letzten Zug samt diesem Würfelwurf zurück
       ev.push({ t: 'roll', value: n, from, path });
     }
     if (found !== null) {
@@ -560,10 +672,12 @@
       }
       case 'board': {
         const victim = a.target;
+        // Der Enternde wirft immer einen Blick auf die Karten – auch wenn keine davon nutzbar ist
+        const cards = state.hands[victim].map(c => ({ id: c.id, type: c.type }));
         if (boardActions(state, victim).length) {
           state.pend = { k: 'board', seat: actor, victim };
-          ev.push({ t: 'board', seat: actor, victim });
-        } else ev.push({ t: 'board', seat: actor, victim, none: true });
+          ev.push({ t: 'board', seat: actor, victim, cards });
+        } else ev.push({ t: 'board', seat: actor, victim, cards, none: true });
         return;
       }
       case 'trade': {
@@ -575,8 +689,11 @@
         return;
       }
       case 'vision':
-        for (const s of state.seats) if (s !== actor) state.open[s] = true;
-        ev.push({ t: 'vision', seat: actor });
+        // Weitblick: wer die Karte spielt, sieht bis Rundenende alle anderen Hände
+        state.open[actor] = true;
+        const shown = {};
+        for (const s of state.seats) if (s !== actor) shown[s] = state.hands[s].map(c => ({ id: c.id, type: c.type }));
+        ev.push({ t: 'vision', seat: actor, hands: shown });
         return;
       case 'storm': {
         const old = state.hands, hands = {};
@@ -636,11 +753,11 @@
     const pend = state.pend;
 
     if (legal.k === 'fold') {
-      const cards = state.hands[seat].splice(0);
-      state.discard.push.apply(state.discard, cards);
-      state.out[seat] = true;
+      const idx = state.hands[seat].findIndex(c => c.id === legal.card);
+      const card = state.hands[seat].splice(idx, 1)[0];
+      state.discard.push(card);
       state.last = null;
-      ev.push({ t: 'fold', seat, cards });
+      ev.push({ t: 'fold', seat, card });
     } else if (legal.k === 'pass') {
       state.pend = null; state.last = null;
       ev.push({ t: 'pass', seat });
@@ -697,7 +814,7 @@
       winner: state.winner, me: seat,
     };
     for (const s of state.seats) {
-      const shown = s === seat || state.open[s] || (p && p.k === 'board' && p.seat === seat && p.victim === s);
+      const shown = s === seat || state.open[seat] || (p && p.k === 'board' && p.seat === seat && p.victim === s);
       v.hands[s] = shown ? state.hands[s].map(c => Object.assign({}, c)) : state.hands[s].map(() => null);
       v.give[s] = s === seat ? state.give[s] : (state.give[s] === null ? null : state.give[s] === -1 ? -1 : true);
     }
@@ -710,6 +827,10 @@
         for (const s in e.hands) hands[s] = +s === seat ? e.hands[s] : e.hands[s].map(() => null);
         return Object.assign({}, e, { hands });
       }
+      if ((e.t === 'board' || e.t === 'vision') && e.seat !== seat) {
+        const c = Object.assign({}, e); delete c.cards; delete c.hands;
+        return c;
+      }
       if (e.t === 'exchanged') {
         const got = {};
         if (e.got[seat]) got[seat] = e.got[seat];
@@ -720,9 +841,9 @@
   }
 
   const Engine = {
-    RING, QUAD, BERTHS, FLEET, HAND, DIE, SPLIT, DECK, DECK_SIZE, TYPES, STEPS, NUMBERS, MOVES,
-    newGame, apply, view, eventsFor, legalActions, cardActions, typeActions, splitOptions, splitShips, boardActions,
-    effect, cloneBoard, boardKey, forward, backward, huntPath, rollPath, restore, sharkAppear, nextBerth, nextActive,
+    RING, QUAD, BERTHS, FLEET, HAND, DIE, SPLIT, BAYS, isBay, DECK, DECK_SIZE, TYPES, STEPS, NUMBERS, MOVES,
+    newGame, apply, view, eventsFor, legalActions, cardActions, typeActions, blockReason, splitOptions, splitShips, boardActions,
+    effect, cloneBoard, boardKey, forward, backward, huntPath, rollPath, restore, sharkAppear, nextBerth, harborRoom, nextActive,
     team, partner, nextSeat, prevSeat, controlOwner, teamHome, fleetHome, startField, sameAction,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
