@@ -8,7 +8,8 @@ function check(state) {
   const berths = {};
   for (const s of state.ships) {
     if (s.at === 'none') continue;
-    const k = s.at === 'ring' ? 'r' + s.i : s.at + s.owner + ':' + s.i;
+    const k = s.at === 'ring' ? 'r' + s.i : s.at === 'bay' ? 'y' + s.i : s.at + s.owner + ':' + s.i;
+    if (s.at === 'bay') assert(E.isBay(s.i), 'Bucht gibt es nur neben 8, 24, 40, 56');
     assert(!seen.has(k), 'zwei Schiffe auf einem Feld: ' + k);
     seen.add(k);
     if (s.at === 'ring') assert(s.i >= 0 && s.i < 64);
@@ -104,6 +105,39 @@ const hand = (state, seat, ...types) => { state.hands[seat] = types.map((t, k) =
   assert(E.legalActions(st, 0).some(a => a.ship === 1 && a.dest.at === 'harbor' && a.dest.i === 3), 'Hafenzug mit Zahlenkarte');
   // die 4 nur rückwärts
   assert.deepStrictEqual(E.typeActions(st, 0, '4').map(a => a.n), [-4]);
+  // Buchten: statt auf Feld 8 in die Bucht daneben; dort sicher vor dem Hai
+  st = fresh(); S = st.ships;
+  put(st, 0, 5);
+  let opt = E.forward(st, S[0], 3);
+  assert.deepStrictEqual(opt.map(o => o.dest), [{ at: 'ring', i: 8 }, { at: 'bay', i: 8 }]);
+  hand(st, 0, '3');
+  r = E.apply(st, 0, { k: 'move', card: 900, ship: 0, n: 3, harbor: false, bay: true });
+  assert(r.ok, r.error);
+  assert.deepStrictEqual([S[0].at, S[0].i], ['bay', 8]);
+  st.shark = 4;
+  assert.deepStrictEqual(E.rollPath(st, 6).filter(p => p.hit !== undefined), [], 'Hai schwimmt an der Bucht vorbei');
+  assert.deepStrictEqual(E.huntPath(st), [], 'Hai-Karte findet niemanden');
+  // aus der Bucht weiter: der erste Schritt führt auf Feld 9; die Bucht hält niemanden auf
+  assert.deepStrictEqual(E.forward(st, S[0], 2).map(o => o.dest), [{ at: 'ring', i: 10 }]);
+  put(st, 4, 6);
+  assert.deepStrictEqual(E.forward(st, S[4], 4).map(o => o.dest), [{ at: 'ring', i: 10 }], 'Bucht wird überholt');
+  assert.deepStrictEqual(E.forward(st, S[4], 2).map(o => o.dest), [{ at: 'ring', i: 8 }], 'besetzte Bucht: nur das Ringfeld');
+  assert(!E.typeActions(st, 4, 'swap').some(a => a.ship === 0 || a.target === 0), 'in der Bucht kein Kurswechsel');
+  S[4].at = 'base'; S[4].i = 0;
+  assert.deepStrictEqual(E.backward(st, S[0], 4), [], 'rückwärts nicht auf den Hai');
+  st.shark = 30;
+  assert.deepStrictEqual(E.backward(st, S[0], 4).map(o => o.dest), [{ at: 'ring', i: 4 }]);
+  // Hafen ist sicher: der Lotse holt ein eingelaufenes Schiff nicht wieder heraus
+  st = fresh(); S = st.ships;
+  put(st, 0, 61); put(st, 4, 63);
+  hand(st, 0, '7'); hand(st, 1, 'pilot', '2');
+  r = E.apply(st, 0, { k: 'move', card: 900, ship: 0, n: 7, harbor: true });
+  assert(r.ok, r.error);
+  assert.strictEqual(S[0].at, 'harbor'); assert.strictEqual(S[4].at, 'base');
+  r = E.apply(st, 1, { k: 'pilot', card: 910 });
+  assert(r.ok, r.error);
+  assert.strictEqual(S[0].at, 'harbor', 'bleibt im Hafen');
+  assert.deepStrictEqual([S[4].at, S[4].i], ['ring', 63], 'geschlagenes Schiff kommt zurück');
   // frisch ausgelaufen: nicht direkt in den Hafen
   st = fresh(); S = st.ships;
   put(st, 0, 0, true);
@@ -212,5 +246,12 @@ const hand = (state, seat, ...types) => { state.hands[seat] = types.map((t, k) =
   E.apply(st, 0, { k: 'give', card: 901 }); E.apply(st, 2, { k: 'give', card: 920 });
   assert.strictEqual(st.hands[0][0].type, '9'); assert.strictEqual(st.hands[2][0].type, '2');
   assert.strictEqual(st.phase, 'play'); assert.strictEqual(st.turn, 1);
+  // Begründungen für unspielbare Karten
+  st = fresh(); S = st.ships;
+  assert(/1 oder eine 12/.test(E.blockReason(st, 0, '6')));
+  assert(/noch nicht aufgetaucht/.test(E.blockReason(st, 0, 'shark')));
+  put(st, 0, 10); put(st, 4, 12);
+  assert(/im Weg/.test(E.blockReason(st, 0, '6')));
+  assert(/Zug direkt davor/.test(E.blockReason(st, 0, 'pilot')));
   console.log('Regeltests ok');
 })();

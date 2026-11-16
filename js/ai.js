@@ -12,6 +12,8 @@
     const S = E.startField(s.owner);
     const d = (S - s.i + RING) % RING;
     let progress = s.fresh ? 0 : RING - d;
+    // in der Bucht: vor dem Hai und vor anderen Schiffen sicher
+    if (s.at === 'bay') return 12 + progress * 0.9 + (board.shark >= 0 ? 2 : 0.5);
     // knapp hinter dem Startfeld: mit der 4 rückwärts in den Hafen
     const k0 = (s.i - S + RING) % RING;
     if (!s.fresh && k0 >= 1 && k0 <= 3) progress = Math.max(progress, 44 - k0 * 4);
@@ -164,7 +166,7 @@
     let best = null, bestV = -Infinity;
     for (const a of acts) {
       const card = a.card !== undefined ? view.hands[holder].find(c => c && c.id === a.card) : null;
-      const key = (card ? card.type : '') + '|' + a.k + '|' + a.ship + '|' + a.n + '|' + a.harbor + '|' + a.target;
+      const key = (card ? card.type : '') + '|' + a.k + '|' + a.ship + '|' + a.n + '|' + a.harbor + '|' + a.bay + '|' + a.target;
       if (seen.has(key)) continue;
       seen.add(key);
       const v = scoreAction(view, seat, a, memo) + Math.random() * 0.6;

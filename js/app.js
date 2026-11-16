@@ -1033,7 +1033,7 @@
     if (boardFirst()) return;
     if (!G.acts.some(a => a.card === id)) {
       const h = G.hand.find(x => x.card.id === id);
-      if (h) { toast('Diese Karte lässt sich gerade nicht spielen.', 1600); anim(h.el, [{ translate: '0 0' }, { translate: '-5px 0' }, { translate: '5px 0' }, { translate: '0 0' }], { duration: 260 }); }
+      if (h) { toast(cardWhy(h.card.type), 3600); anim(h.el, [{ translate: '0 0' }, { translate: '-5px 0' }, { translate: '5px 0' }, { translate: '0 0' }], { duration: 260 }); }
       return;
     }
     if (G.sel.card === id) { G.sel = { card: null, ship: null }; layoutHand(); updateTargets(); return; }
@@ -1042,6 +1042,11 @@
     updateTargets();
   }
 
+  function cardWhy(type) {
+    const v = G.view, p = v.pend;
+    if (v.skip[G.viewer] > 0 && !(p && p.k === 'bonus')) return 'Du setzt aus und wirfst nur eine Karte ab.';
+    return E.blockReason(v, p && p.k === 'board' ? p.victim : G.viewer, type);
+  }
   function currentActs() {
     if (boardFirst()) return G.acts;
     if (G.sel.card === null) return [];
@@ -1099,7 +1104,8 @@
     // Hinweistext
     let hint;
     const lead = p && p.k === 'replay' ? `<b>Lotse:</b> Nutze ${esc(cardLabel(type))} selbst. ` : '';
-    if (plain.length && (plain[0].k === 'fold' || plain[0].k === 'discard')) hint = 'Diese Karte abwerfen?';
+    if (plain.length && plain[0].k === 'fold') hint = `${esc(cardWhy(type))} <b>Abwerfen?</b>`;
+    else if (plain.length && plain[0].k === 'discard') hint = 'Diese Karte abwerfen?';
     else if (p && p.k === 'split') hint = `<b>Noch ${p.left} ${p.left === 1 ? 'Schritt' : 'Schritte'}</b> – ` + (G.sel.ship === null ? 'wähle ein Schiff (auch eines deines Partners)' : 'wähle das Zielfeld');
     else if (swapping) hint = 'Mit wem soll getauscht werden? Auch der Hai ist möglich.';
     else if (G.sel.ship !== null) hint = `${lead}${esc(info.hint)} <b>Tippe auf das Ziel.</b>`;
@@ -1126,7 +1132,7 @@
   function act(a) {
     if (!G.open || !G.session) return;
     const action = { k: a.k };
-    for (const key of ['card', 'ship', 'n', 'harbor', 'target']) if (a[key] !== undefined) action[key] = a[key];
+    for (const key of ['card', 'ship', 'n', 'harbor', 'bay', 'target']) if (a[key] !== undefined) action[key] = a[key];
     if (a.k === 'give') G.giveSel = a.card;
     const keepGive = G.giveSel;
     G.open = false;

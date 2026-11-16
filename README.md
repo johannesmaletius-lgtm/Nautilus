@@ -32,7 +32,11 @@ Danach `http://localhost:8000` öffnen. Für GitHub Pages reicht es, den Ordner 
   Im Hafen darf man später weiter nach hinten fahren; dort ist man sicher.
 - **Der Weiße Hai** erscheint mit dem ersten Lotsen ein Feld hinter dem Startfeld dieses Spielers. Jedes Mal, wenn alle einmal
   an der Reihe waren, wird gewürfelt; der Hai schwimmt weiter und schlägt alles auf seinem Weg.
+- **Buchten:** Neben den Feldern in der Mitte zwischen den Startfeldern liegt außen je eine Bucht. Wer genau auf so einem Feld
+  landen würde, darf in die Bucht einlaufen und ist dort vor dem Hai, vor dem Schlagen und vor dem Kurswechsel sicher.
+- Was im Hafen liegt, bleibt dort – auch der Lotse holt es nicht heraus.
 - Liegt die eigene Flotte komplett im Hafen, zieht man die Schiffe des Partners.
+- Tippt man eine Karte an, die gerade nicht geht, nennt das Spiel den Grund.
 
 | Karte | Anzahl | Wirkung |
 |---|---|---|

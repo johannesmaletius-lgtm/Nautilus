@@ -27,8 +27,9 @@
   <ul>
     <li>Den Hai darf man überholen, ohne ihn zu schlagen – aber nicht auf seinem Feld anhalten.</li>
     <li>Ein geschütztes Schiff auf seinem Startfeld hält auch den Hai auf: Er bleibt davor stehen.</li>
-    <li>Schiffe im Heimathafen sind vor ihm sicher.</li>
+    <li>Schiffe im Heimathafen und in den Buchten sind vor ihm sicher.</li>
   </ul>
+  <p><b>Die Buchten:</b> Außen am Ring liegen vier Buchten – jeweils in der Mitte zwischen zwei Startfeldern. Wer genau auf dem Ringfeld neben einer Bucht landen würde, darf stattdessen in die Bucht einlaufen. Dort ist das Schiff sicher: Weder der Hai noch andere Schiffe können es schlagen, und ein Kurswechsel erreicht es nicht. In jede Bucht passt ein Schiff. Schiffe in einer Bucht halten niemanden auf. Von dort fährt man mit der nächsten Karte weiter, als stünde man auf dem Ringfeld daneben.</p>
 
   <h3>5. Bewegung</h3>
   <ul>
@@ -36,7 +37,7 @@
     <li>Alle Schiffe fahren im Uhrzeigersinn. <b>Andere Schiffe dürfen nicht übersprungen werden</b> – Ausnahme ist die 7.</li>
     <li><b>Schlagen:</b> Wer auf einem besetzten Feld landet, schlägt das Schiff dort zurück in seine Werft – auch eigene und die des Partners.</li>
     <li><b>Heimathafen:</b> Nach der Umrundung läuft ein Schiff über das eigene Startfeld in den Hafen ein. Jeder Schritt nach dem Startfeld führt einen Liegeplatz weiter hinein: Mit passender Zahl kommt man auf den 1., 2., 3. oder 4. Platz. Im Hafen wird nicht übersprungen. Wer mehr Schritte hat, als bis zum letzten erreichbaren freien Platz passen, kann nicht einlaufen und fährt am Hafen vorbei.</li>
-    <li><b>Im Hafen</b> darf ein Schiff später mit einer Zahlenkarte (auch mit Schritten der 5) weiter nach hinten fahren – genau passend und ohne zu überspringen. Im Hafen ist es sicher: Es wird weder geschlagen noch getauscht.</li>
+    <li><b>Im Hafen</b> darf ein Schiff später mit einer Zahlenkarte (auch mit Schritten der 5) weiter nach hinten fahren – genau passend und ohne zu überspringen. Im Hafen ist es sicher: Nichts holt es wieder heraus – kein Hai, kein Schlagen, kein Kurswechsel und auch kein Lotse.</li>
     <li>Ein frisch ausgelaufenes Schiff muss erst losfahren, bevor es in den Hafen darf.</li>
     <li><b>Die 4 fährt nur rückwärts.</b> Vom eigenen Startfeld aus kommt ein Schiff so vier Felder zurück und kann später mit einer passenden Karte vorwärts einlaufen. Ist ein Schiff vom Startfeld aus erst ein bis drei Felder weit gefahren, fährt es mit der 4 rückwärts über das Startfeld direkt in den Hafen (die übrigen Schritte zählen im Hafen). Ein Schiff, das gerade erst ausgelaufen ist, darf das nicht.</li>
     <li><b>Teamunterstützung:</b> Liegen alle vier eigenen Schiffe im Hafen, spielst du mit den Schiffen deines Partners weiter.</li>
@@ -69,7 +70,8 @@
 
   <h3>Feinheiten in dieser Umsetzung</h3>
   <ul class="fine">
-    <li>Der Lotse wirkt auf Züge mit Zahlenkarten, Kurswechsel und Hai. Nach Entern, Handel, Weitblick, Sturmfront, Abwerfen oder einem Würfelwurf des Hais gibt es nichts zurückzunehmen.</li>
+    <li>Der Lotse wirkt auf Züge mit Zahlenkarten, Kurswechsel und Hai. Nach Entern, Handel, Weitblick, Sturmfront, Abwerfen oder einem Würfelwurf des Hais gibt es nichts zurückzunehmen. Ein Schiff, das inzwischen im Hafen liegt, bleibt dort.</li>
+    <li>Tippst du eine Karte an, die gerade nicht geht, steht oben der Grund.</li>
     <li>Wirkungslose Karten (etwa der Hai, solange er nicht da ist) zählen als nicht spielbar.</li>
     <li>Kann der Spieler nach einer Sturmfront keine Karte mehr spielen, endet sein Zug ohne Strafe.</li>
     <li>Der Kartensatz: je 10 × 1 und 12, je 7 × 4 und 7, je 6 × 2, 3, 5, 6, 8, 9, 10; 7 × Kurswechsel, 6 × Lotse, 4 × Entern, je 3 × Hai, Handel, Sturmfront, 2 × Weitblick.</li>
