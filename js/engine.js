@@ -607,7 +607,7 @@
       const n = 1 + Math.floor(rnd(state) * DIE);
       const from = state.shark, path = rollPath(state, n);
       runShark(state, path);
-      state.last = null;
+      // Der Lotse bleibt danach spielbar: Er nimmt den letzten Zug samt diesem Würfelwurf zurück
       ev.push({ t: 'roll', value: n, from, path });
     }
     if (found !== null) {

@@ -70,7 +70,7 @@
 
   <h3>Feinheiten in dieser Umsetzung</h3>
   <ul class="fine">
-    <li>Der Lotse wirkt auf Züge mit Zahlenkarten, Kurswechsel und Hai. Nach Entern, Handel, Weitblick, Sturmfront, Abwerfen oder einem Würfelwurf des Hais gibt es nichts zurückzunehmen. Ein Schiff, das inzwischen im Hafen liegt, bleibt dort.</li>
+    <li>Der Lotse wirkt auf Züge mit Zahlenkarten, Kurswechsel und Hai. Nach Entern, Handel, Weitblick, Sturmfront oder Abwerfen gibt es nichts zurückzunehmen. Hat der Hai nach dem letzten Zug gewürfelt, nimmt der Lotse den Zug samt dem Würfelwurf zurück: Der Hai schwimmt zurück, und Schiffe, die er dabei geschlagen hat, kehren auf ihre Felder zurück. Ein Schiff, das inzwischen im Hafen liegt, bleibt dort.</li>
     <li>Tippst du eine Karte an, die gerade nicht geht, steht oben der Grund.</li>
     <li>Wirkungslose Karten (etwa der Hai, solange er nicht da ist) zählen als nicht spielbar.</li>
     <li>Kann der Spieler nach einer Sturmfront keine Karte mehr spielen, endet sein Zug ohne Strafe.</li>

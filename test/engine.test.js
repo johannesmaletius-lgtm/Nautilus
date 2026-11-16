@@ -246,6 +246,17 @@ const hand = (state, seat, ...types) => { state.hands[seat] = types.map((t, k) =
   E.apply(st, 0, { k: 'give', card: 901 }); E.apply(st, 2, { k: 'give', card: 920 });
   assert.strictEqual(st.hands[0][0].type, '9'); assert.strictEqual(st.hands[2][0].type, '2');
   assert.strictEqual(st.phase, 'play'); assert.strictEqual(st.turn, 1);
+  // Lotse nach einem Würfelwurf des Hais: Zug und Wurf werden zurückgenommen
+  st = fresh(); S = st.ships; st.shark = 40; st.lead = 1; st.turn = 0;
+  put(st, 0, 3); put(st, 4, 44);
+  hand(st, 0, '6'); hand(st, 1, 'pilot', '2');
+  r = E.apply(st, 0, { k: 'move', card: 900, ship: 0, n: 6, harbor: false });
+  assert(r.events.some(e => e.t === 'roll'), 'Hai würfelt');
+  assert(st.last, 'Lotse bleibt spielbar');
+  r = E.apply(st, 1, { k: 'pilot', card: 910 });
+  assert(r.ok, r.error);
+  assert.strictEqual(S[0].i, 3); assert.strictEqual(st.shark, 40);
+  assert.deepStrictEqual([S[4].at, S[4].i], ['ring', 44]);
   // Begründungen für unspielbare Karten
   st = fresh(); S = st.ships;
   assert(/1 oder eine 12/.test(E.blockReason(st, 0, '6')));
