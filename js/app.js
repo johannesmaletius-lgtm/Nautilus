@@ -651,8 +651,8 @@
         case 'play': await doPlay(e); break;
         case 'launch': await B.launch(e.ship, e.to, e.hit); break;
         case 'move':
-          await B.moveShip(e.ship, e.path);
-          if (e.home) { B.homeGlow(e.ship); await sleep(420); }
+          await B.moveShip(e.ship, e.path, { back: e.back });
+          if (e.home) await B.dock(e.ship, e.from.at === 'harbor');
           break;
         case 'swap': await B.swap(e.a, e.posA, e.b, e.posB); break;
         case 'shark': await B.sharkRun(e.path); break;
