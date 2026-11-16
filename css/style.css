@@ -207,6 +207,8 @@ img { -webkit-user-drag: none; }
 .ship { transition: transform var(--dur, 0ms) cubic-bezier(.35, .55, .35, 1); cursor: pointer; }
 .ship .guard { display: none; transform-box: fill-box; transform-origin: center; }
 .ship.fresh .guard { display: block; animation: spin 10s linear infinite; }
+.face { will-change: transform; }
+.fxg, .wake { pointer-events: none; }
 .ship.pick .ship-in { animation: ship-pulse 1.1s ease-in-out infinite; }
 @keyframes ship-pulse { 50% { transform: scale(1.16); } }
 @keyframes spin { to { transform: rotate(360deg); } }

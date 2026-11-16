@@ -90,8 +90,11 @@ node test/engine.test.js
 
 Spielt zufällige und KI-gesteuerte Partien bis zum Ende und prüft dabei die Invarianten (kein Feld doppelt besetzt, kein Schiff auf dem Hai, Kartenzahl bleibt 104 …) sowie gezielte Regelfälle (7, 5, 8, 4 rückwärts, Lotse, Hai, Kurswechsel, Entern, Sturmfront, Handel, Weitblick, Abwerfen, Hafeneinfahrt und Fahrt im Hafen).
 
-Die Spielfiguren (`assets/fig-*.webp`, auch der Hai) sind aus Fotos der Figuren freigestellt; auf dem Spielfeld bleiben sie aufrecht,
-auch wenn sich der Tisch zur Sicht des jeweiligen Spielers dreht. Die Motive der Sonderkarten und der 4 (`assets/card-*.webp`)
+Die Spielfiguren (`assets/fig-*.webp`, auch der Hai) sind aus Fotos der Figuren freigestellt und haben eine feine dunkle Kontur,
+damit sie sich vom Brett und voneinander abheben. Sie sind knapp so breit wie der Feldabstand auf dem Ring, bleiben aufrecht,
+auch wenn sich der Tisch zur Sicht des jeweiligen Spielers dreht, und zeigen mit dem Bug in Fahrtrichtung.
+Besondere Züge haben eigene Animationen (`js/board.js`): Stapellauf beim Auslaufen, Kanonenschuss und Kentern beim Schlagen,
+Sprung und Biss des Hais, die Wende bei der 4 und der Freudensprung im Heimathafen. Die Motive der Sonderkarten und der 4 (`assets/card-*.webp`)
 sind aus den Kartenentwürfen ausgeschnitten und als Druckfarbe auf transparentem Grund gespeichert.
 
 ## Fremdmaterial
