@@ -19,7 +19,7 @@
   <h3>3. Die Seefahrt</h3>
   <p>Zu Beginn jeder Runde erhält jeder <b>fünf Handkarten</b>. Im Teamspiel tauschen die Partner danach verdeckt je <b>eine Karte</b> – ohne Absprache.
   Der Spieler links vom Kartengeber beginnt, dann geht es im Uhrzeigersinn. Pro Zug spielt man eine Karte und führt sie aus. Die Runde endet, wenn alle ihre Karten ausgespielt haben; dann wechselt der Kartengeber.</p>
-  <p><b>Zugzwang:</b> Spielbare Karten müssen eingesetzt werden – auch wenn dadurch eigene Schiffe oder die des Partners geschlagen werden. Wer keine Karte einsetzen kann, wirft die ganze Hand ab und setzt bis zur nächsten Seefahrt aus.</p>
+  <p><b>Zugzwang:</b> Spielbare Karten müssen eingesetzt werden – auch wenn dadurch eigene Schiffe oder die des Partners geschlagen werden. Wer keine Karte einsetzen kann, wirft <b>eine Karte</b> seiner Wahl ab; die übrigen Karten behält er, falls noch ein Handel oder eine Sturmfront kommt.</p>
 
   <h3>4. Der Weiße Hai</h3>
   <p>Sobald der erste <b>Lotse</b> gespielt wird, erscheint der Hai ein Feld hinter dem Startfeld dieses Spielers – und bleibt für den Rest des Spiels.
@@ -32,12 +32,13 @@
 
   <h3>5. Bewegung</h3>
   <ul>
-    <li><b>Auslaufen:</b> Mit einer 1 oder 12 kommt ein Schiff aus der Werft auf das eigene Startfeld. Dort ist es <b>geschützt</b> (gestrichelter Ring): Es kann weder geschlagen noch getauscht noch überholt werden – bis es weiterfährt.</li>
+    <li><b>Auslaufen:</b> Mit einer 1 oder 12 kommt ein Schiff aus der Werft auf das eigene Startfeld. Dort ist es <b>geschützt</b> (gestrichelter Ring): Es kann weder geschlagen noch überholt werden – bis es weiterfährt oder per Kurswechsel versetzt wird.</li>
     <li>Alle Schiffe fahren im Uhrzeigersinn. <b>Andere Schiffe dürfen nicht übersprungen werden</b> – Ausnahme ist die 7.</li>
     <li><b>Schlagen:</b> Wer auf einem besetzten Feld landet, schlägt das Schiff dort zurück in seine Werft – auch eigene und die des Partners.</li>
-    <li><b>Heimathafen:</b> Nach der Umrundung läuft ein Schiff über das eigene Startfeld in den Hafen ein. Die Schrittzahl muss <b>exakt</b> passen, und im Hafen wird nicht übersprungen. Der Hafen füllt sich von innen nach außen: Man läuft immer genau bis zum innersten freien Liegeplatz. Wer im Hafen liegt, ist sicher und wird nicht mehr bewegt, geschlagen oder getauscht.</li>
+    <li><b>Heimathafen:</b> Nach der Umrundung läuft ein Schiff über das eigene Startfeld in den Hafen ein. Jeder Schritt nach dem Startfeld führt einen Liegeplatz weiter hinein: Mit passender Zahl kommt man auf den 1., 2., 3. oder 4. Platz. Im Hafen wird nicht übersprungen. Wer mehr Schritte hat, als bis zum letzten erreichbaren freien Platz passen, kann nicht einlaufen und fährt am Hafen vorbei.</li>
+    <li><b>Im Hafen</b> darf ein Schiff später mit einer Zahlenkarte (auch mit Schritten der 5) weiter nach hinten fahren – genau passend und ohne zu überspringen. Im Hafen ist es sicher: Es wird weder geschlagen noch getauscht.</li>
     <li>Ein frisch ausgelaufenes Schiff muss erst losfahren, bevor es in den Hafen darf.</li>
-    <li><b>Rückwärts mit der 4:</b> Vom eigenen Startfeld aus darf ein Schiff vier Felder rückwärts fahren und später mit einer passenden Karte vorwärts einlaufen. Ist ein Schiff vom Startfeld aus erst ein bis drei Felder weit gefahren, kann es mit der 4 auch rückwärts über das Startfeld direkt in den Hafen fahren. Ein Schiff, das gerade erst ausgelaufen ist, darf das nicht.</li>
+    <li><b>Die 4 fährt nur rückwärts.</b> Vom eigenen Startfeld aus kommt ein Schiff so vier Felder zurück und kann später mit einer passenden Karte vorwärts einlaufen. Ist ein Schiff vom Startfeld aus erst ein bis drei Felder weit gefahren, fährt es mit der 4 rückwärts über das Startfeld direkt in den Hafen (die übrigen Schritte zählen im Hafen). Ein Schiff, das gerade erst ausgelaufen ist, darf das nicht.</li>
     <li><b>Teamunterstützung:</b> Liegen alle vier eigenen Schiffe im Hafen, spielst du mit den Schiffen deines Partners weiter.</li>
   </ul>
 
@@ -45,7 +46,7 @@
   <div class="rule-cards">
     ${card('1', '1 – Ablegen', 'Ein Schiff aus der Werft auf das Startfeld setzen – oder ein Schiff ein Feld vorwärts.')}
     ${card('2', '2, 3, 6, 9, 10', 'Vorstoß, Weiterfahrt, Lange Fahrt, Volle Fahrt, Höchstgeschwindigkeit: genau so viele Felder vorwärts.')}
-    ${card('4', '4 – Kurskorrektur', 'Vier Felder vorwärts oder rückwärts – auch rückwärts in den Hafen, siehe oben.')}
+    ${card('4', '4 – Kurskorrektur', 'Vier Felder rückwärts – auch rückwärts über das Startfeld in den Hafen, siehe oben.')}
     ${card('5', '5 – Gemeinsame Fahrt', 'Fünf Schritte beliebig auf deine Schiffe und die deines Partners verteilen. Jedes Schiff zieht dabei höchstens einmal, und alle fünf Schritte müssen aufgehen.')}
     ${card('7', '7 – Freie Passage', 'Ein Schiff sieben Felder vorwärts. Alle Schiffe auf dem Weg werden geschlagen – auch eigene.')}
     ${card('8', '8 – Unterbrechung', 'Ein Schiff acht Felder vorwärts – oder der nächste Spieler setzt aus und muss dafür eine Handkarte abwerfen.')}
@@ -54,12 +55,12 @@
 
   <h3>7. Die Sonderkarten</h3>
   <div class="rule-cards">
-    ${card('swap', 'Kurswechsel', 'Zwei beliebige Schiffe auf dem Ring tauschen die Plätze – auch gegnerische und die des Partners. Auch der Hai kann mit einem Schiff tauschen.')}
-    ${card('board', 'Entern', 'Nimm die Handkarten deines linken Nachbarn und spiele eine davon für ihn: eine Zahlenkarte, einen Kurswechsel oder den Hai. Die übrigen Karten bekommt er zurück.')}
+    ${card('swap', 'Kurswechsel', 'Zwei beliebige Schiffe auf dem Ring tauschen die Plätze – eigene, gegnerische, die des Partners, auch geschützte (sie verlieren dabei ihren Schutz). Auch der Hai kann mit einem Schiff tauschen.')}
+    ${card('board', 'Entern', 'Du siehst dir die Handkarten deines linken Nachbarn an und spielst eine davon für ihn: eine Zahlenkarte, einen Kurswechsel oder den Hai. Die übrigen behält er. Passt keine, verpufft das Entern.')}
     ${card('pilot', 'Lotse', 'Der Zug direkt davor wird rückgängig gemacht. Danach musst du die Karte, die gespielt wurde, soweit möglich selbst nutzen – bei mehreren Möglichkeiten nicht unbedingt dieselbe. Mit dem ersten Lotsen erscheint der Hai.')}
     ${card('shark', 'Weißer Hai', 'Der Hai schwimmt vorwärts bis zum nächsten Schiff und schlägt es. Solange der Hai nicht auf dem Spielfeld ist, ist die Karte wirkungslos.')}
-    ${card('trade', 'Handel', 'Tausche verdeckt eine Handkarte mit deinem Partner. Im Duell wirkungslos.')}
-    ${card('vision', 'Weitblick', 'Alle anderen Spieler – auch dein Partner – zeigen ihre Handkarten bis zum Ende der Runde offen.')}
+    ${card('trade', 'Handel', 'Tausche verdeckt eine Handkarte mit deinem Partner. Danach ist dein Zug vorbei. Im Duell wirkungslos.')}
+    ${card('vision', 'Weitblick', 'Bis zum Ende der Runde siehst du die Handkarten aller anderen Spieler – auch die deines Partners. Tippe auf einen Spieler, um sie anzusehen.')}
     ${card('storm', 'Sturmfront', 'Jeder gibt seine Handkarten an den Spieler rechts weiter. Wer die Karte gespielt hat, darf danach noch eine Karte spielen.')}
   </div>
 

@@ -396,10 +396,22 @@ body.side .status { min-height: 60px; }
 /* ---------- Seefahrt: lange Kartenunterschriften, offene Karten (Weitblick), Hai ---------- */
 .cap.long { white-space: normal; font-size: .6em; letter-spacing: .09em; line-height: 1.15; max-width: 14em; text-align: center; hyphens: manual; }
 .chip .minis.open { gap: 2px; }
-.chip .minis i.face {
+.chip .minis i.mface {
   width: auto; min-width: 13px; height: 17px; margin-left: 0; padding: 0 2px;
   display: grid; place-items: center; font-style: normal; font-size: 9.5px; font-weight: 750; line-height: 1;
   color: var(--ink); background: var(--paper-hi); box-shadow: 0 0 0 1px var(--navy);
 }
 .shark-in { transform-box: fill-box; transform-origin: center; }
 .shark .guard { transform-box: fill-box; transform-origin: center; animation: spin 14s linear infinite; }
+.chip .minis i.mface { min-width: 15px; height: 20px; font-size: 11px; border-radius: 3px; }
+.chip .minis i.mface .ic { width: 12px; height: 12px; display: block; }
+.chip.peekable { cursor: pointer; }
+.chip.peekable .minis { height: 22px; }
+/* Karten anderer Spieler ansehen (Weitblick, Entern) */
+.modal-card.peek { max-width: 460px; }
+.peek-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: 1px solid rgba(22, 51, 92, .12); }
+.peek-who { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.peek-who .tok { width: 24px; height: 28px; }
+.peek-cards { display: flex; flex-wrap: wrap; gap: 6px; --cw: 62px; }
+.peek-cards .card { position: relative; }
+.peek .btn.wide { margin-top: 8px; }

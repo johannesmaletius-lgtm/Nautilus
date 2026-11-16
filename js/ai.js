@@ -8,7 +8,7 @@
 
   function shipValue(board, s, ring) {
     if (s.at === 'base' || s.at === 'none') return 0;
-    if (s.at === 'harbor') return 88 + s.i;
+    if (s.at === 'harbor') return 84 + s.i * 3; // weiter hinten im Hafen ist besser: der Eingang bleibt frei
     const S = E.startField(s.owner);
     const d = (S - s.i + RING) % RING;
     let progress = s.fresh ? 0 : RING - d;
@@ -119,7 +119,7 @@
       case 'trade': score = base() + 0.3; break;
       case 'vision': score = base() + 0.2; break;
       case 'storm': score = base() + 1.2; break;
-      case 'discard': {
+      case 'discard': case 'fold': {
         const c = view.hands[seat].find(x => x && x.id === a.card);
         return -(c ? keepValue(c) : 0);
       }
